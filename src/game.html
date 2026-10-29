@@ -773,16 +773,15 @@
     },
     {
       type:'road', dir:'up', name:'UPHILL STREET',
-      goal:'Runoff flows downhill. Protect the drains from the top down.',
+      goal:'Walk the hill and protect every drain before it rolls past.',
       tips:[
         {icon:SPRITE_SRC.basinOpen, text:'Drains roll in from the top of the hill along both curbs. HOLD action on one to protect it.'},
-        {icon:TILE_SRC.eroding, text:'Every open drain uphill sends more runoff down the curb, so lower drains fill faster. Work top-down.'},
+        {icon:TILE_SRC.eroding, text:'Muddy runoff flows down the curbs. Any drain that rolls past the bottom unprotected costs a life.'},
         {icon:SPRITE_SRC.up.cars[0].src, text:'Two-way traffic: downhill on the left, uphill on the right. Watch for the ! flags.'}
       ],
       duration:32,
       scrollSpeed:26,
       basinSpawnInterval:3.6, basinMax:2,
-      basinFillTime:14, surge:0.5,   // seconds to overflow alone; +50% fill rate per open drain uphill
       carSpeed:38, carScale:1.15,
       obstacleIntervalMin:2.8, obstacleIntervalMax:4.2,
       bmpTruckAt:[0.45],
@@ -2673,8 +2672,8 @@
 
   // =====================================================================
   //  UPHILL STREET: the same job seen from above. The hero walks up a hill (the world scrolls down),
-  //  traffic runs both ways, and runoff flows downhill along each curb: every open drain uphill of
-  //  another on the same curb sends it extra water, so it overflows sooner. Protect from the top down.
+  //  traffic runs both ways, and muddy runoff flows down each curb. A drain lost is one that rolls
+  //  past the bottom unprotected.
   // =====================================================================
   const VR_L=72, VR_R=184, VR_MID=(VR_L+VR_R)/2, VR_WALK=8;
   let upLots={left:[],right:[]}, grassPat=null;
@@ -2695,7 +2694,6 @@
       if(arr[i].y>VIEW_H){ const l=makeUpLot(0, side); top-=l.h; l.y=top; arr[i]=l; }
     }
   }
-  function upBasinsAbove(b){ return basins.filter(o=>o!==b && o.state==='active' && o.side===b.side && o.y<b.y).length; }
   function updateUphill(dt,lvl){
     const v=inputVec();
     // with no input the hero keeps trudging uphill with the scroll
@@ -2714,25 +2712,19 @@
     basinTimer-=dt;
     if(basinTimer<=0 && basins.filter(b=>b.state==='active').length<lvl.basinMax){
       const side=Math.random()<0.5?'left':'right', w=16, h=16;
-      basins.push({x:side==='left'?VR_L:VR_R-w, y:-h, w, h, side, state:'active', fill:0});
+      basins.push({x:side==='left'?VR_L:VR_R-w, y:-h, w, h, side, state:'active'});
       basinTimer=lvl.basinSpawnInterval*(0.85+Math.random()*0.3);
     }
     for(let i=basins.length-1;i>=0;i--){
       const b=basins[i];
       b.y+=dy;
       if(b.state==='active'){
-        b.fill+=dt/lvl.basinFillTime*(1+lvl.surge*upBasinsAbove(b));
         if(held.action && player.x<b.x+b.w && player.x+player.w>b.x && player.y<b.y+b.h && player.y+player.h>b.y){
           b.state='covered';
           burst(b.x+b.w/2,b.y+b.h/2,14,['#d9c8a1','#e8b923','#fff3c4'],50,0.55);
           popup(b.x+b.w/2,b.y-4,'+'+PTS_COVER);
           score+=PTS_COVER; siteStats.covers++;
           sfx.cover();
-        } else if(b.fill>=1){
-          b.state='flooded';
-          burst(b.x+b.w/2,b.y+b.h/2,16,['#7d6448','#a68a5b','#4aa3df'],60,0.7);
-          loseLife('DRAIN OVERFLOWED!', b.x+b.w/2, b.y);
-          if(state!=='PLAYING') return;
         }
       }
       if(b.y>VIEW_H){
@@ -2823,7 +2815,7 @@
     for(let y=(worldScroll%22)-22;y<VIEW_H;y+=22) ctx.fillRect(Math.round(VR_MID)-1,Math.round(y),2,12);
     // runoff: a muddy stream down each gutter, from the top of the hill to the lowest open drain
     for(const side of ['left','right']){
-      const open=basins.filter(b=>b.side===side && (b.state==='active' || b.state==='flooded'));
+      const open=basins.filter(b=>b.side===side && b.state==='active');
       if(!open.length) continue;
       const low=open.reduce((m,b)=>b.y>m.y?b:m,open[0]);
       const gx=side==='left'?VR_L+2:VR_R-6;
@@ -2836,13 +2828,9 @@
       const bx=Math.round(b.x), by=Math.round(b.y);
       if(b.state==='covered'){ ctx.drawImage(IMAGES.basinDonut, bx, by, b.w, b.h); continue; }
       ctx.drawImage(IMAGES.basinCovered, bx, by, b.w, b.h);
-      if(b.state==='flooded'){ ctx.fillStyle='rgba(125,99,66,.75)'; ctx.fillRect(bx-2,by-2,b.w+4,b.h+4); continue; }
-      const p=0.5+0.5*Math.sin(gameTime*8), urgent=b.fill>0.7;
-      ctx.strokeStyle=urgent?`rgba(255,90,58,${0.5+p*0.5})`:`rgba(232,185,35,${0.4+p*0.6})`; ctx.lineWidth=1;
+      const p=0.5+0.5*Math.sin(gameTime*8);
+      ctx.strokeStyle=`rgba(232,185,35,${0.4+p*0.6})`; ctx.lineWidth=1;
       ctx.strokeRect(bx-1.5,by-1.5,b.w+3,b.h+3);
-      const bw=b.w+2, fx=bx-1, fy=by-5;
-      ctx.fillStyle='#0d0b08'; ctx.fillRect(fx,fy,bw,3);
-      ctx.fillStyle=b.fill>0.7?'#ff5a3a':b.fill>0.4?'#e8b923':'#5ac24a'; ctx.fillRect(fx+1,fy+1,Math.round((bw-2)*clamp(b.fill,0,1)),1);
     }
     // incoming-traffic flags at the top (downhill) and bottom (uphill) edges
     for(const o of obstacles){

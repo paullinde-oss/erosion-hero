@@ -56,7 +56,7 @@ Blankets first, then catch basins, then the two turbidity curtains.
 2. **Hillside Grading**: blankets on slopes
 3. **Detention Pond**: blankets around a pond
 4. **Main Street**: catch basins, side-scrolling street with the BMP truck
-5. **Uphill Street**: catch basins seen from above. The hero walks uphill, traffic runs both ways, and every open drain uphill makes the ones below it overflow sooner (work top-down). Tuning lives in its LEVELS entry (`basinFillTime`, `surge`, `carSpeed`, `obstacleInterval*`).
+5. **Uphill Street**: catch basins seen from above. The hero walks uphill, traffic runs both ways, and any drain that rolls past the bottom unprotected costs a life. Tuning lives in its LEVELS entry (`scrollSpeed`, `basinSpawnInterval`, `carSpeed`, `obstacleInterval*`).
 6. **Lakeshore**: turbidity curtain, top to bottom from the shore
 7. **Riverbank**: turbidity curtain, left to right along the bank while the current pushes the boat out (finale)
 
