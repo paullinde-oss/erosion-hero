@@ -183,11 +183,26 @@
   .keycap{ display:inline-block; border:calc(var(--u)*1) solid var(--muted); padding:calc(var(--u)*1) calc(var(--u)*2); color:var(--paper); }
 
   .test-toggle{
-    position:absolute; right:calc(var(--u)*3); bottom:calc(var(--u)*3);
-    font-family:var(--font); font-size:calc(var(--u)*4); padding:calc(var(--u)*2) calc(var(--u)*3);
-    background:transparent; color:rgba(138,122,98,.35);
-    border:calc(var(--u)*0.5) solid rgba(58,47,34,.6); cursor:pointer; z-index:20;
+    position:absolute; right:calc(var(--u)*4); bottom:calc(var(--u)*4);
+    padding:calc(var(--u)*1.5); background:transparent; color:rgba(232,185,35,.45);
+    border:none; cursor:pointer; z-index:20; line-height:0;
   }
+  .test-toggle svg{ width:calc(var(--u)*12); height:calc(var(--u)*8.25); image-rendering:pixelated; }
+  .test-toggle:hover{ color:rgba(232,185,35,.9); }
+  .title-menu{ display:flex; flex-direction:column; align-items:center; gap:calc(var(--u)*5); }
+  .title-row{ display:flex; gap:calc(var(--u)*6); }
+  .title-opt{ font:inherit; font-size:calc(var(--u)*6); color:var(--paper); background:rgba(13,11,8,.7); border:calc(var(--u)*1) solid var(--panel-line); padding:calc(var(--u)*3) calc(var(--u)*6); cursor:pointer; }
+  .title-opt[data-title="play"]{ background:none; border:none; padding:0; }
+  .title-opt.sel:not([data-title="play"]){ background:var(--hazard); color:var(--ink); border-color:var(--hazard); }
+  .title-opt[data-title="play"]:not(.sel) .press-start{ opacity:.55; animation:none; }
+  .board-mode{ font-size:calc(var(--u)*6); color:var(--muted); margin-top:calc(var(--u)*-3); }
+  .how-panel .howto div{ font-size:calc(var(--u)*6); }
+  .site-row{ display:flex; flex-wrap:wrap; justify-content:flex-end; gap:calc(var(--u)*2); max-width:calc(var(--u)*130); }
+  #adminScreen .site-row .btn.sq{ width:calc(var(--u)*13); padding:calc(var(--u)*2.5) 0; font-size:calc(var(--u)*6); }
+  .pin-pad{ display:grid; grid-template-columns:repeat(3, calc(var(--u)*22)); gap:calc(var(--u)*3); }
+  .pin-pad button{ font:inherit; font-size:calc(var(--u)*7); color:var(--paper); background:rgba(13,11,8,.6); border:calc(var(--u)*1) solid var(--panel-line); padding:calc(var(--u)*3) 0; cursor:pointer; }
+  .pin-pad button:active{ background:var(--hazard); color:var(--ink); }
+  #pinScreen .panel.shake{ animation:csShake .3s; }
 
   /* ---------- Briefing ---------- */
   .brief-tips{ display:flex; flex-direction:column; gap:calc(var(--u)*4); width:100%; text-align:left; }
@@ -375,11 +390,10 @@
 
   <!-- TITLE / ATTRACT MODE -->
   <div class="overlay" id="titleScreen">
-    <div class="title-top"><div><span>HI</span> <b id="hiScore">000000</b></div><div class="mode-badge" id="modeBadge">IECA EDITION</div></div>
+    <div class="title-top"><div><span>HI</span> <b id="hiScore">000000</b></div><div class="mode-badge" id="modeBadge">CONFERENCE EDITION</div></div>
     <div class="attract-wrap">
       <div class="attract on" data-panel="logo">
         <h1 class="logo"><span>EROSION</span><span>HERO</span></h1>
-        <div class="tagline">A BMP SUPPLIES ARCADE CHALLENGE</div>
       </div>
       <div class="attract" data-panel="scores">
         <div class="panel hazard">
@@ -394,16 +408,22 @@
             <div><span class="keycap">MOVE</span><span>Joystick / arrows</span></div>
             <div><span class="keycap">HOLD</span><span>Action button on <b>eroding soil</b> to lay a blanket</span></div>
             <div><span class="keycap">AVOID</span><span>The <b>Inspector's</b> sightline, water &amp; traffic</span></div>
-            <div><span class="keycap">WIN</span><span>Secure all 5 sites before the storm</span></div>
+            <div><span class="keycap">WIN</span><span>Secure all 7 sites before the storm</span></div>
           </div>
         </div>
       </div>
     </div>
-    <div class="press-start blink">PRESS START</div>
+    <div class="title-menu">
+      <button class="title-opt sel" data-title="play"><span class="press-start blink">PRESS START</span></button>
+      <div class="title-row">
+        <button class="title-opt" data-title="howto">HOW TO PLAY</button>
+        <button class="title-opt" data-title="board">LEADERBOARD</button>
+      </div>
+    </div>
     <button class="fs-btn" id="fsBtn">FULL SCREEN</button>
     <div class="fs-hint">For full screen on iPhone: Share &rsaquo; Add to Home Screen</div>
-    <div class="title-foot">&copy; BMP SUPPLIES &middot; 5 SITES &middot; 1 STORM</div>
-    <button class="test-toggle" id="testToggleBtn" tabindex="-1">TEST</button>
+    <div class="title-foot">&copy; BMP SUPPLIES</div>
+    <button class="test-toggle" id="testToggleBtn" tabindex="-1" aria-label="Operator menu"><svg viewBox="0 0 16 11" shape-rendering="crispEdges"><path fill="currentColor" d="M6 0h4v1h2v1h1v1h1v3h1v2h1v2h-16v-2h1v-2h1v-3h1v-1h1v-1h2z"/><path fill="rgba(0,0,0,.35)" d="M7 1h2v6h-2zM1 8h14v1h-14z"/></svg></button>
   </div>
 
   <!-- CHARACTER SELECT -->
@@ -496,11 +516,38 @@
   <div class="overlay dim hidden" id="boardScreen">
     <div class="panel hazard">
       <h2>TOP CREWS</h2>
+      <div class="board-mode" id="boardMode"></div>
       <ol class="lb" id="boardList"></ol>
       <div class="menu row">
-        <button class="btn" data-act="again">PLAY AGAIN</button>
+        <button class="btn" data-act="again" id="boardAgainBtn">PLAY AGAIN</button>
         <button class="btn" data-act="title">MAIN MENU</button>
       </div>
+    </div>
+  </div>
+
+  <!-- HOW TO PLAY (from the title screen) -->
+  <div class="overlay dim hidden" id="howScreen">
+    <div class="panel hazard how-panel">
+      <h2>HOW TO PLAY</h2>
+      <div class="howto">
+        <div><span class="keycap">MOVE</span><span>Joystick, D-pad or arrows</span></div>
+        <div><span class="keycap">A</span><span>HOLD on <b>eroding soil</b> to lay a blanket, or on an <b>open drain</b> to protect it</span></div>
+        <div><span class="keycap">AVOID</span><span>The <b>Inspector's</b> sightline, water &amp; traffic</span></div>
+        <div><span class="keycap">STEER</span><span>Trace the <b>turbidity curtain</b> plan with the boat. Closer = more points</span></div>
+        <div><span class="keycap">WIN</span><span>Secure all 7 sites before the storm</span></div>
+      </div>
+      <div class="menu row"><button class="btn" data-act="title">MAIN MENU</button></div>
+    </div>
+  </div>
+
+  <!-- OPERATOR PIN -->
+  <div class="overlay dim hidden" id="pinScreen">
+    <div class="panel hazard">
+      <h2 id="pinTitle">OPERATOR PIN</h2>
+      <div class="te-slots" id="pinSlots"></div>
+      <div class="te-msg" id="pinMsg"></div>
+      <div class="pin-pad" id="pinPad"></div>
+      <div class="te-help"><b>UP/DOWN</b> change digit &middot; <b>A</b> next<br><b>B</b> back &middot; or type the numbers</div>
     </div>
   </div>
 
@@ -510,15 +557,7 @@
       <h2>OPERATOR MENU</h2>
       <div class="admin-grid">
         <div class="admin-row"><span>JUMP TO SITE</span>
-          <div class="menu row">
-            <button class="btn sq" data-act="site" data-site="0">1</button>
-            <button class="btn sq" data-act="site" data-site="1">2</button>
-            <button class="btn sq" data-act="site" data-site="2">3</button>
-            <button class="btn sq" data-act="site" data-site="3">4</button>
-            <button class="btn sq" data-act="site" data-site="4">5</button>
-            <button class="btn sq" data-act="site" data-site="5">6</button>
-            <button class="btn sq" data-act="site" data-site="6">7</button>
-          </div>
+          <div class="site-row" id="siteRow"></div>
         </div>
         <div class="admin-row"><span>EVENT MODE</span><button class="btn" data-act="mode" id="modeBtn"></button></div>
         <div class="admin-row"><span>CONTROLLER</span><button class="btn" data-act="padSetup" id="padBtn">SET UP A / B</button></div>
@@ -528,10 +567,11 @@
         <div class="admin-row"><span>CRT SCANLINES</span><button class="btn" data-act="toggle" data-key="crt"></button></div>
         <div class="admin-row"><span>IDLE RESET</span><button class="btn" data-act="toggle" data-key="idleReset"></button></div>
         <div class="admin-row"><span>DISPLAY</span><button class="btn" data-act="fullscreen">FULLSCREEN</button></div>
-        <div class="admin-row"><span>LEADS (<b id="leadCount">0</b>)</span>
+        <div class="admin-row"><span>OPERATOR PIN</span><button class="btn" data-act="pinChange">CHANGE</button></div>
+        <div class="admin-row"><span>CONFERENCE LEADS (<b id="leadCount">0</b>)</span>
           <div class="menu row">
             <button class="btn" data-act="export">EXPORT CSV</button>
-            <button class="btn" data-act="clearLeads" id="clearLeadsBtn">CLEAR</button>
+            <button class="btn" data-act="clearLeads" id="clearLeadsBtn">RESET</button>
           </div>
         </div>
       </div>
@@ -666,7 +706,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   //  SETTINGS (operator menu, persisted on this device)
   // =====================================================================
   const SETTINGS_KEY='erosionHeroSettings_v1';
-  const settings=Object.assign({music:true, sfx:true, crt:true, idleReset:true, mode:'show', secretHeroes:true, padA:null, padB:null}, (()=>{
+  const settings=Object.assign({music:true, sfx:true, crt:true, idleReset:true, mode:'public', secretHeroes:true, pin:'123', leadsExportedAt:null, padA:null, padB:null}, (()=>{
     try{ return JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'); }catch(e){ return {}; }
   })());
   function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }catch(e){} }
@@ -674,7 +714,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     document.body.classList.toggle('no-crt', !settings.crt);
     Snd.setVolumes();
     document.querySelectorAll('[data-act="toggle"]').forEach(b=>{ b.textContent=settings[b.dataset.key]?(b.dataset.key==='secretHeroes'?'UNLOCKED':'ON'):(b.dataset.key==='secretHeroes'?'LOCKED':'OFF'); });
-    $('modeBtn').textContent=settings.mode==='show'?'IECA SHOW':'PUBLIC';
+    $('modeBtn').textContent=settings.mode==='show'?'CONFERENCE':'PUBLIC';
     $('modeBadge').classList.toggle('hidden', settings.mode!=='show');
     $('padBtn').textContent=settings.padA!=null?`A=${settings.padA} B=${settings.padB}`:'SET UP A / B';
   }
@@ -1046,7 +1086,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
 
   window.addEventListener('keydown', e=>{
     markInput(); Snd.unlock(); usePhysicalControls();
-    if(e.code==='Backquote'){ openAdmin(); e.preventDefault(); return; }
+    if(e.code==='Backquote'){ if(state!=='PIN' && state!=='ADMIN') openPin('unlock'); e.preventDefault(); return; }
     if(e.code==='KeyF' && state!=='ENTRY'){ toggleFullscreen(); return; }
     if(e.code==='KeyM' && state!=='ENTRY'){ settings.music=!settings.music; saveSettings(); applySettings(); return; }
     if(state==='ENTRY' && !e.ctrlKey && !e.metaKey && !e.altKey){
@@ -1169,7 +1209,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   // =====================================================================
   //  MENUS: every overlay button is reachable by joystick/keys as well as mouse/touch
   // =====================================================================
-  const OVERLAYS=['titleScreen','charScreen','padScreen','briefScreen','pauseScreen','clearScreen','resultsScreen','entryScreen','boardScreen','adminScreen'];
+  const OVERLAYS=['howScreen','pinScreen','titleScreen','charScreen','padScreen','briefScreen','pauseScreen','clearScreen','resultsScreen','entryScreen','boardScreen','adminScreen'];
   let currentOverlay=null, menuFocus=0;
   function show(id){
     OVERLAYS.forEach(x=>$(x).classList.toggle('hidden', x!==id));
@@ -1211,17 +1251,73 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   //  Async on purpose: to move the booth to Firebase, write an object with the
   //  same list()/add()/clear() methods backed by Firestore and assign it to Board.store.
   // =====================================================================
-  // Two boards: the IECA show board (name + company, offline) and the public board (names only;
-  // this is the one to move online with Firebase after the show).
+  // Two boards. CONFERENCE (settings.mode 'show'): name + company, kept only on this laptop, exported
+  // as CSV and reset between events. PUBLIC (default): names only; online through Firebase once
+  // FIREBASE_CONFIG is filled in, saved on this device first so nothing is lost without internet.
   const BOARD_KEYS={show:'erosionHeroLeads_v1', public:'erosionHeroScores_public_v1'};
-  const boardKey=()=>BOARD_KEYS[settings.mode]||BOARD_KEYS.show;
-  const LocalStore={
-    async list(){ try{ return JSON.parse(localStorage.getItem(boardKey())||'[]'); }catch(e){ return []; } },
-    async add(entry){ const arr=await this.list(); arr.push(entry); try{ localStorage.setItem(boardKey(), JSON.stringify(arr)); }catch(e){} return entry; },
-    async clear(){ try{ localStorage.setItem(boardKey(),'[]'); }catch(e){} }
+  const PUBLIC_CACHE_KEY='erosionHeroScores_onlineCache_v1';
+  // Paste the web config from Firebase (Project settings > Your apps) here, e.g.
+  // {apiKey:"...", projectId:"erosion-hero"}. Only apiKey and projectId are used.
+  const FIREBASE_CONFIG=window.EROSION_FIREBASE||null;
+  const readJson=(k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)||'null')??d; }catch(e){ return d; } };
+  const writeJson=(k,v)=>{ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+  const ConferenceStore={
+    async list(){ return readJson(BOARD_KEYS.show,[]); },
+    async add(entry){ const arr=await this.list(); arr.push(entry); writeJson(BOARD_KEYS.show,arr); return entry; },
+    async clear(){ writeJson(BOARD_KEYS.show,[]); }
   };
+  // Firestore over plain REST (no SDK to load, so it fails quietly when offline).
+  const Firestore=FIREBASE_CONFIG && {
+    base:`https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents`,
+    key:FIREBASE_CONFIG.apiKey,
+    async add(e){
+      const num=v=>v==null?{nullValue:null}:{integerValue:String(Math.round(v))};
+      const r=await fetch(`${this.base}/scores?key=${this.key}`, {method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({fields:{name:{stringValue:e.name}, crew:{stringValue:e.crew}, score:num(e.score),
+          siteReached:num(e.siteReached), curtainAccuracy:num(e.curtainAccuracy), date:{stringValue:e.date}}})});
+      if(!r.ok) throw new Error('firestore add '+r.status);
+    },
+    async top(n){
+      const r=await fetch(`${this.base}:runQuery?key=${this.key}`, {method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({structuredQuery:{from:[{collectionId:'scores'}], orderBy:[{field:{fieldPath:'score'},direction:'DESCENDING'}], limit:n}})});
+      if(!r.ok) throw new Error('firestore query '+r.status);
+      const val=f=>f==null?null:f.integerValue!=null?Number(f.integerValue):f.stringValue!=null?f.stringValue:null;
+      return (await r.json()).filter(x=>x.document).map(x=>{ const f=x.document.fields||{};
+        const e={name:val(f.name), crew:val(f.crew), score:val(f.score), siteReached:val(f.siteReached), curtainAccuracy:val(f.curtainAccuracy), date:val(f.date)};
+        e.id=e.date+'|'+e.name; return e; });
+    }
+  };
+  const PublicStore={
+    local(){ return readJson(BOARD_KEYS.public,[]); },
+    async list(){
+      const mine=this.local();
+      if(!Firestore) return mine;
+      let online=readJson(PUBLIC_CACHE_KEY,[]);
+      try{ online=await Firestore.top(100); writeJson(PUBLIC_CACHE_KEY,online); }catch(e){}
+      const ids=new Set(online.map(e=>e.id));
+      return online.concat(mine.filter(e=>e.pending && !ids.has(e.id)));   // scores still waiting to upload
+    },
+    async add(entry){
+      const arr=this.local(); arr.push(Object.assign({pending:!!Firestore}, entry)); writeJson(BOARD_KEYS.public,arr);
+      await this.sync();
+      return entry;
+    },
+    async sync(){
+      if(!Firestore || this.syncing) return;
+      this.syncing=true;
+      try{
+        for(const e of this.local().filter(e=>e.pending)){
+          await Firestore.add(e);
+          writeJson(BOARD_KEYS.public, this.local().map(x=>x.id===e.id?Object.assign({},x,{pending:false}):x));
+        }
+      }catch(err){ /* offline: try again later */ }
+      this.syncing=false;
+    },
+    async clear(){ writeJson(BOARD_KEYS.public,[]); }
+  };
+  if(Firestore){ window.addEventListener('online', ()=>PublicStore.sync()); setInterval(()=>PublicStore.sync(), 60000); setTimeout(()=>PublicStore.sync(), 1500); }
   const Board={
-    store:LocalStore,
+    get store(){ return settings.mode==='show'?ConferenceStore:PublicStore; },
     // Score first; curtain accuracy breaks ties; earlier entry wins a full tie.
     sort(arr){
       return arr.slice().sort((a,b)=>(b.score-a.score) ||
@@ -1487,8 +1583,16 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   // =====================================================================
   //  FLOW
   // =====================================================================
+  let titleSel='play';
+  function renderTitleSel(){ document.querySelectorAll('.title-opt').forEach(b=>b.classList.toggle('sel', b.dataset.title===titleSel)); }
+  function titleChoose(what){
+    sfx.select();
+    if(what==='howto'){ state='HOWTO'; show('howScreen'); }
+    else if(what==='board'){ showBoard(null, true); }
+    else openCharSelect();
+  }
   function goTitle(){
-    state='TITLE';
+    state='TITLE'; titleSel='play'; renderTitleSel();
     hideAll(); show('titleScreen');
     attractIdx=0; attractT=0; setAttract(0);
     refreshTitleScores();
@@ -1739,7 +1843,11 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     const rank=await Board.rankFor(score, curtainAvg());
     if(state==='RESULTS') $('resRank').textContent = score<=0 ? '' : rank<=10 ? `NEW TOP-10 SCORE! RANK #${rank}` : `RANK #${rank}`;
   }
-  async function showBoard(highlightId){
+  let boardFromTitle=false;
+  async function showBoard(highlightId, fromTitle){
+    boardFromTitle=!!fromTitle;
+    $('boardMode').textContent=settings.mode==='show'?'CONFERENCE BOARD':(Firestore?'ONLINE BOARD':'PUBLIC BOARD');
+    $('boardAgainBtn').textContent=fromTitle?'PLAY':'PLAY AGAIN';
     $('boardList').innerHTML=boardHtml(await Board.top(10), highlightId);
     state='BOARD';
     show('boardScreen');
@@ -1766,7 +1874,8 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       case 'title': goTitle(); break;
       case 'site': qaMode=true; startGame(parseInt(el.dataset.site,10)); break;
       case 'toggle': settings[el.dataset.key]=!settings[el.dataset.key]; saveSettings(); applySettings(); break;
-      case 'mode': settings.mode=settings.mode==='show'?'public':'show'; saveSettings(); applySettings(); Board.store.list().then(a=>{ $('leadCount').textContent=a.length; }); break;
+      case 'mode': settings.mode=settings.mode==='show'?'public':'show'; saveSettings(); applySettings(); refreshTitleScores(); break;
+      case 'pinChange': openPin('set'); break;
       case 'padSetup': openPadSetup(); break;
       case 'fullscreen': toggleFullscreen(); break;
       case 'export': exportCsv(); break;
@@ -2092,9 +2201,19 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
         break;
       case 'TITLE':
         updateAttract(dt);
-        if(pressed.action||pressed.start){ sfx.select(); openCharSelect(); }
+        if(pressed.start){ titleChoose('play'); return; }
+        if(rep.up||rep.left||rep.down||rep.right){
+          const opts=['play','howto','board'];
+          let i=opts.indexOf(titleSel);
+          if(rep.down) i=i===0?1:i; else if(rep.up) i=0;
+          else if(rep.right) i=i===0?1:Math.min(2,i+1); else if(rep.left) i=i===2?1:i===1?0:0;
+          if(opts[i]!==titleSel){ titleSel=opts[i]; renderTitleSel(); sfx.move(); }
+        }
+        if(pressed.action) titleChoose(titleSel);
         return;
-      case 'BRIEFING': case 'PAUSED': case 'BOARD': case 'ADMIN':
+      case 'PIN':
+        updatePin(); break;
+      case 'BRIEFING': case 'PAUSED': case 'BOARD': case 'ADMIN': case 'HOWTO':
         menuNav(); break;
       case 'CLEAR': case 'RESULTS':
         updateTally(dt); break;
@@ -2256,11 +2375,12 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     const reached=Math.min(levelIdx+1, LEVELS.length);
     const save=async (name,company)=>{
       const entry={
-        id:Date.now()+'-'+Math.floor(Math.random()*1e6),
         name:name||'ANONYMOUS', company:company||'', crew:HERO.id,
         score, siteReached:reached, curtainAccuracy:curtainAvg(),   // average over the curtain sites (tiebreaker)
         date:new Date().toISOString()
       };
+      entry.id=entry.date+'|'+entry.name;
+      if(settings.mode!=='show') delete entry.company;
       await Board.store.add(entry);
       lastSavedId=entry.id;
       showBoard(entry.id);
@@ -2277,44 +2397,113 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   // =====================================================================
   //  OPERATOR MENU
   // =====================================================================
-  async function openAdmin(){
+  // Operator PIN (default 123, changeable in the menu). Digits: UP/DOWN, A next, B back; or type / tap.
+  let pin=null;
+  function openPin(mode){
+    if(state==='PIN' || (state==='ADMIN' && mode!=='set')) return;
+    if(mode==='unlock' && (state==='PLAYING'||state==='COUNTDOWN')) pauseGame();
+    pin={mode, digits:[0,0,0], cursor:0, back:{state, overlay:currentOverlay?currentOverlay.id:null}};
+    if(mode==='set') pin.back={state:'ADMIN', overlay:'adminScreen'};
+    $('pinTitle').textContent=mode==='set'?'NEW PIN':'OPERATOR PIN';
+    $('pinMsg').textContent='';
+    $('pinPad').innerHTML=[1,2,3,4,5,6,7,8,9,'<',0,'OK'].map(k=>`<button data-k="${k}">${k==='<'?'&lt;':k}</button>`).join('');
+    $('pinPad').querySelectorAll('button').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); pinKey(b.dataset.k); }));
+    state='PIN'; show('pinScreen'); renderPin();
+  }
+  function renderPin(){
+    $('pinSlots').innerHTML=pin.digits.map((d,i)=>`<div class="te-slot${i===pin.cursor?' active':''}">${i<pin.cursor||i===pin.cursor?d:'&middot;'}</div>`).join('');
+  }
+  function pinKey(k){
+    if(!pin) return;
+    if(k==='<'){ if(pin.cursor>0){ pin.cursor--; } else return pinCancel(); }
+    else if(k==='OK'){ return pinSubmit(); }
+    else { pin.digits[pin.cursor]=+k; if(pin.cursor<2) pin.cursor++; else return pinSubmit(); }
+    sfx.letter(pin.cursor); renderPin();
+  }
+  function pinCancel(){
+    const b=pin.back; pin=null;
+    if(b.state==='ADMIN'){ state='ADMIN'; show('adminScreen'); applySettings(); return; }
+    if(b.state==='TITLE'||!b.overlay){ goTitle(); return; }
+    state=b.state; show(b.overlay);
+  }
+  function pinSubmit(){
+    const code=pin.digits.join('');
+    if(pin.mode==='set'){
+      settings.pin=code; saveSettings(); sfx.cover();
+      pin=null; state='ADMIN'; show('adminScreen'); applySettings(); return;
+    }
+    if(code===String(settings.pin||'123')){
+      const b=pin.back; pin=null; qaMode=true;
+      state=b.state; currentOverlay=b.overlay?$(b.overlay):null;
+      openAdmin(b);
+      return;
+    }
+    sfx.warn(); $('pinMsg').textContent='WRONG PIN';
+    const panel=$('pinScreen').querySelector('.panel'); panel.classList.remove('shake'); void panel.offsetWidth; panel.classList.add('shake');
+    pin.digits=[0,0,0]; pin.cursor=0; renderPin();
+  }
+  function updatePin(){
+    if(!pin) return;
+    if(rep.up||rep.down){ pin.digits[pin.cursor]=(pin.digits[pin.cursor]+(rep.up?1:9))%10; sfx.letter(pin.digits[pin.cursor]); renderPin(); }
+    if(rep.right && pin.cursor<2){ pin.cursor++; renderPin(); }
+    if(rep.left && pin.cursor>0){ pin.cursor--; renderPin(); }
+    if(pinTyped){ pinTyped=false; return; }   // a typed digit key (1 doubles as an arcade Start button) was already handled
+    if(pressed.action){ if(pin.cursor<2){ pin.cursor++; sfx.letter(pin.cursor); renderPin(); } else pinSubmit(); }
+    else if(pressed.back) pinKey('<');
+  }
+  let pinTyped=false;
+  window.addEventListener('keydown', e=>{ if(state!=='PIN') return;
+    if(/^Digit[0-9]$|^Numpad[0-9]$/.test(e.code)){ pinTyped=true; e.preventDefault(); e.stopImmediatePropagation(); pinKey(e.code.slice(-1)); }
+    else if(e.code==='Enter'||e.code==='NumpadEnter'){ pinTyped=true; e.preventDefault(); e.stopImmediatePropagation(); pinKey('OK'); } }, true);
+  function buildSiteRow(){
+    $('siteRow').innerHTML=LEVELS.map((l,i)=>`<button class="btn sq" data-act="site" data-site="${i}" title="${l.name}">${i+1}</button>`).join('');
+    $('siteRow').querySelectorAll('.btn').forEach(b=>{
+      b.addEventListener('mouseenter', ()=>{ const bs=menuButtons(); const i=bs.indexOf(b); if(i>=0 && i!==menuFocus){ menuFocus=i; refreshFocus(); } });
+      b.addEventListener('click', e=>{ e.stopPropagation(); onAction(b.dataset.act, b); });
+    });
+  }
+  buildSiteRow();
+  async function openAdmin(from){
     if(state==='ADMIN') return;
     if(state==='PLAYING'||state==='COUNTDOWN'){ pauseGame(); }
-    preAdmin={state, overlay:currentOverlay?currentOverlay.id:null};
+    preAdmin=from||{state, overlay:currentOverlay?currentOverlay.id:null};
     state='ADMIN';
     show('adminScreen');
     applySettings();
-    $('leadCount').textContent=(await Board.store.list()).length;
+    $('leadCount').textContent=(await ConferenceStore.list()).length;
   }
   function closeAdmin(){
     const p=preAdmin||{state:'TITLE'};
     if(p.state==='TITLE'||!p.overlay){ goTitle(); return; }
     state=p.state; show(p.overlay);
   }
-  $('testToggleBtn').addEventListener('click', e=>{ e.stopPropagation(); qaMode=true; openAdmin(); });
+  $('testToggleBtn').addEventListener('click', e=>{ e.stopPropagation(); openPin('unlock'); });
+  document.querySelectorAll('.title-opt').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); if(state!=='TITLE') return; Snd.unlock(); titleSel=b.dataset.title; renderTitleSel(); titleChoose(titleSel); }));
   $('titleScreen').addEventListener('click', ()=>{ if(state==='TITLE'){ Snd.unlock(); if(document.body.classList.contains('touch-mode')) enterFullscreen(); sfx.select(); openCharSelect(); } });
+  // Conference leads: RESET only after the current list has been exported, then confirm.
   let clearArmed=false, clearArmTimer=null;
   async function armClear(btn){
-    if(!clearArmed){
-      clearArmed=true; btn.textContent='CONFIRM?';
-      clearArmTimer=setTimeout(()=>{ clearArmed=false; btn.textContent='CLEAR'; },3000);
-    } else {
-      clearTimeout(clearArmTimer); clearArmed=false;
-      await Board.store.clear();
-      btn.textContent='CLEARED'; $('leadCount').textContent='0';
-      setTimeout(()=>{ btn.textContent='CLEAR'; },1500);
-    }
+    const n=(await ConferenceStore.list()).length;
+    const say=(t,ms)=>{ btn.textContent=t; clearTimeout(clearArmTimer); clearArmTimer=setTimeout(()=>{ clearArmed=false; btn.textContent='RESET'; },ms); };
+    if(!n){ say('NO LEADS',1500); return; }
+    if(settings.leadsExportedAt!==n){ sfx.warn(); say('EXPORT FIRST',2200); return; }
+    if(!clearArmed){ clearArmed=true; say('CONFIRM?',3000); return; }
+    clearArmed=false;
+    await ConferenceStore.clear(); settings.leadsExportedAt=null; saveSettings();
+    $('leadCount').textContent='0'; say('RESET!',1500);
+    refreshTitleScores();
   }
   async function exportCsv(){
-    const rows=Board.sort(await Board.store.list());
+    const rows=Board.sort(await ConferenceStore.list());
     const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
     const csv=['rank,name,company,score,site_reached,curtain_accuracy,date']
       .concat(rows.map((r,i)=>[i+1,q(r.name),q(r.company),r.score,r.siteReached,r.curtainAccuracy==null?'':r.curtainAccuracy,q(r.date)].join(',')))
       .join('\n');
     const a=document.createElement('a');
     a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-    a.download='erosion-hero-leads-'+new Date().toISOString().slice(0,10)+'.csv';
+    a.download='erosion-hero-conference-leads-'+new Date().toISOString().slice(0,10)+'.csv';
     document.body.appendChild(a); a.click(); a.remove();
+    settings.leadsExportedAt=rows.length; saveSettings();
   }
   function toggleFullscreen(){
     try{
@@ -3179,7 +3368,8 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     ctx.setTransform(1,0,0,1,0,0);
     ctx.fillStyle='#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
     // nothing to draw behind the title screen, or the operator menu opened from it
-    if(state==='TITLE' || (state==='ADMIN' && (!preAdmin || preAdmin.state==='TITLE'))) return;
+    const fromTitle=st=>st==='TITLE'||st==='HOWTO'||(st==='BOARD'&&boardFromTitle);
+    if(fromTitle(state) || (state==='ADMIN' && (!preAdmin || fromTitle(preAdmin.state))) || (state==='PIN' && pin && fromTitle(pin.back.state))) return;
     const lvl=LEVELS[levelIdx];
     const sx=shakeT>0?Math.round((Math.random()*2-1)*shakeMag):0;
     const sy=shakeT>0?Math.round((Math.random()*2-1)*shakeMag):0;
@@ -3227,7 +3417,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
 
   // Walk-away protection: return to the attract screen if nobody touches the controls.
   function updateIdle(now){
-    if(!settings.idleReset || state==='TITLE' || state==='ADMIN') return;
+    if(!settings.idleReset || state==='TITLE' || state==='ADMIN' || state==='PIN' || (state==='BOARD' && boardFromTitle)) return;   // a board opened from the title stays up for display
     const idle=(now-lastInputAt)/1000;
     const limit=(state==='PLAYING'||state==='COUNTDOWN'||state==='PAUSED'||state==='ENTRY') ? IDLE_PLAY_SEC : IDLE_MENU_SEC;
     if(state==='STAGE_END') return;

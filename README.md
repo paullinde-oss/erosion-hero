@@ -17,14 +17,18 @@
 
 Name entry also accepts typing letters directly on a keyboard.
 
-## Operator shortcuts
-- **Operator menu:** the backtick key `` ` ``, or the faint TEST button on the title screen. It lets you jump to a site, toggle music, SFX, CRT scanlines and idle reset, go fullscreen, **export leads as CSV**, and clear the leaderboard.
-- **F**: fullscreen. **M**: music on/off.
-- **Idle reset:** menus return to the attract screen after 30s with no input; a game in progress returns after 60s.
+## Title screen
+PRESS START plays. HOW TO PLAY and LEADERBOARD are below it (joystick down/left/right + A, or click/tap). A leaderboard opened from the title stays on screen until someone exits (idle reset is skipped), so it can be left up at the booth.
 
-## Event modes (operator menu → EVENT MODE)
-- **IECA SHOW** (default): offline booth board. Players enter name + company; the title shows "IECA EDITION". Export leads with EXPORT CSV.
-- **PUBLIC**: names only, on a separate board. This is the board to move online (Firebase) for the website after the show.
+## Operator menu (PIN protected)
+- Open it with the small hard-hat icon (bottom right of the title) or the backtick key `` ` ``. It asks for the operator PIN: **123** by default. Enter it with UP/DOWN + A on a controller, by typing, or on the on-screen keypad. Change it in the menu under OPERATOR PIN.
+- Inside: jump to any site, event mode, controller setup, secret heroes, music/SFX/scanlines/idle reset, fullscreen, PIN, and conference leads.
+- **F**: fullscreen. **M**: music on/off.
+- **Idle reset:** menus return to the title after 30s with no input; a game in progress returns after 60s.
+
+## Event modes (operator menu > EVENT MODE)
+- **PUBLIC** (default): names only. When `FIREBASE_CONFIG` is set in `src/game.html`, scores go to the online leaderboard. Each score is saved on the device first and uploaded when there's internet, so nothing is lost offline. The title has no badge.
+- **CONFERENCE**: offline board on this laptop only (browser storage), name + company, title shows "CONFERENCE EDITION". **EXPORT CSV** downloads the leads ranked by score (the top row is your prize winner). **RESET** only works after exporting the current list, then asks to confirm, so the board is ready for the next event.
 - Both modes reject offensive names, including number spellings like 5H1T.
 
 ## Retro USB controller (NES style)
@@ -48,17 +52,7 @@ chrome --kiosk --autoplay-policy=no-user-gesture-required "file:///path/to/Erosi
 ```
 
 ## Leaderboard / Firebase
-Scores are saved in this browser's localStorage (`erosionHeroLeads_v1`, same key as the prototype). The store is a small async adapter (`LocalStore` in `src/game.html`). For Firebase, implement the same `list()`, `add(entry)` and `clear()` methods against Firestore and assign the result to `Board.store`. Nothing else needs to change.
-
-## The seven sites
-Blankets first, then catch basins, then the two turbidity curtains.
-1. **Residential Lot**: blankets
-2. **Hillside Grading**: blankets on slopes
-3. **Detention Pond**: blankets around a pond
-4. **Main Street**: catch basins, side-scrolling street with the BMP truck
-5. **Uphill Street**: catch basins seen from above. The hero walks uphill, traffic runs both ways, and any drain that rolls past the bottom unprotected costs a life. Tuning lives in its LEVELS entry (`scrollSpeed`, `basinSpawnInterval`, `carSpeed`, `obstacleInterval*`).
-6. **Lakeshore**: turbidity curtain, top to bottom from the shore
-7. **Riverbank**: turbidity curtain, left to right along the bank while the current pushes the boat out (finale)
+Conference scores live in this browser's localStorage (`erosionHeroLeads_v1`). Public scores are kept in `erosionHeroScores_public_v1` and, once Firebase is configured, uploaded to the Firestore collection `scores` through the REST API (no SDK). To go online, paste `{apiKey:"...", projectId:"..."}` from the Firebase web config into `FIREBASE_CONFIG` and rebuild. The security rules allow anyone to read and add scores (name, crew, score, site, curtain %, date only), and nobody to edit or delete them from the game.
 
 ## Scoring
 - +50 per erosion control blanket (each covers 2 tiles), +25 per protected inlet; -15 per life lost.
