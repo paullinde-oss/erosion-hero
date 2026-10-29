@@ -1,0 +1,46 @@
+GIMP Palette
+Name: Erosion Hero
+Columns: 8
+#
+255   0 255	Transparent (slot 0, do not paint with it)
+ 59  36  22	Outline 1
+ 31  20  16	Outline 2
+246 201 154	Skin 1
+224 154 108	Skin 2
+168  96  63	Skin 3
+255 241 168	Hard-hat yellow 1
+247 201  53	Hard-hat yellow 2
+217 146  28	Hard-hat yellow 3
+154  90  23	Hard-hat yellow 4
+255 157  74	Safety orange 1
+239 100  32	Safety orange 2
+178  58  26	Safety orange 3
+111 168 220	Denim blue 1
+ 61 111 176	Denim blue 2
+ 42  70 128	Denim blue 3
+ 30  42  82	Denim blue 4
+184 214  90	Grass 1
+121 176  67	Grass 2
+ 75 138  59	Grass 3
+ 46  94  51	Grass 4
+ 29  59  42	Grass 5
+217 160 102	Dirt 1
+176 116  63	Dirt 2
+138  82  48	Dirt 3
+ 94  54  34	Dirt 4
+242 220 155	Straw 1
+214 178  94	Straw 2
+169 130  59	Straw 3
+159 226 240	Clear water 1
+ 79 179 217	Clear water 2
+ 44 127 184	Clear water 3
+ 29  79 134	Clear water 4
+166 138  91	Muddy water 1
+125  99  66	Muddy water 2
+242 240 230	Grays 1
+185 181 170	Grays 2
+138 134 124	Grays 3
+ 92  90  85	Grays 4
+ 58  58  64	Grays 5
+232  71  58	Red 1
+158  42  43	Red 2
