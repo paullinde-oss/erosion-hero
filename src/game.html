@@ -516,6 +516,8 @@
             <button class="btn sq" data-act="site" data-site="2">3</button>
             <button class="btn sq" data-act="site" data-site="3">4</button>
             <button class="btn sq" data-act="site" data-site="4">5</button>
+            <button class="btn sq" data-act="site" data-site="5">6</button>
+            <button class="btn sq" data-act="site" data-site="6">7</button>
           </div>
         </div>
         <div class="admin-row"><span>EVENT MODE</span><button class="btn" data-act="mode" id="modeBtn"></button></div>
@@ -694,6 +696,24 @@
       start:[2,6]
     },
     {
+      type:'road', name:'MAIN STREET',
+      goal:'Protect every storm drain on a live road.',
+      tips:[
+        {icon:SPRITE_SRC.basinOpen, text:'Open catch basins scroll in along both curbs.'},
+        {icon:SPRITE_SRC.basinProtected, text:'Touch one while HOLDING action to install inlet protection.'},
+        {icon:SPRITE_SRC.cars[0].src, text:'A flashing ! means traffic incoming. A missed drain costs a life.'}
+      ],
+      duration:42,
+      scrollSpeed:34,
+      basinSpawnInterval:3.4,
+      basinMax:2,
+      obstacleIntervalMin:1.9,
+      obstacleIntervalMax:3.3,
+      bmpTruckAt:[0.3,0.68],   // the BMP blanket truck rolls through twice per shift
+      obstacleSpeedMult:1.6,
+      playerStart:{x:60,y:100}
+    },
+    {
       type:'yard', name:'HILLSIDE GRADING',
       goal:'More slopes and a longer Inspector route.',
       tips:[
@@ -720,6 +740,20 @@
       ],
       patrol:[[2,2],[13,2],[13,6],[7,6],[7,11],[2,11]],
       start:[2,1]
+    },
+    {
+      type:'curtain', name:'LAKESHORE',
+      goal:'Deploy the turbidity curtain to plan.',
+      tips:[
+        {icon:SPRITE_SRC.boat, text:'One pass only. Steer from the top anchor down to the END anchor, following the dotted plan.'},
+        {icon:SPRITE_SRC.boom, text:'Your match to the plan (100% = perfect) x10 is added to your score. It also breaks ties.'}
+      ],
+      landEdge:78,   // wide enough for the construction site on shore
+      dir:'down', a0:44, a1:180,   // the plan runs top to bottom, out from the shore on the left
+      bulge:150,
+      waypointCount:28,
+      planPreview:3.5,
+      playerStart:{x:42,y:44}
     },
     {
       type:'yard', name:'DETENTION POND',
@@ -750,36 +784,18 @@
       start:[2,1]
     },
     {
-      type:'road', name:'MAIN STREET',
-      goal:'Protect every storm drain on a live road.',
+      type:'curtain', name:'RIVERBANK',
+      goal:'Final site. The current pushes you off the line. Steer against it.',
       tips:[
-        {icon:SPRITE_SRC.basinOpen, text:'Open catch basins scroll in along both curbs.'},
-        {icon:SPRITE_SRC.basinProtected, text:'Touch one while HOLDING action to install inlet protection.'},
-        {icon:SPRITE_SRC.cars[0].src, text:'A flashing ! means traffic incoming. A missed drain costs a life.'}
+        {icon:SPRITE_SRC.boat, text:'One pass, left to right along the work site. Follow the dotted plan to the END anchor.'},
+        {icon:SPRITE_SRC.boom, text:'The river current keeps shoving the boat away from the bank. Hold UP to stay on the plan.'}
       ],
-      duration:50,
-      scrollSpeed:34,
-      basinSpawnInterval:3.4,
-      basinMax:2,
-      obstacleIntervalMin:1.9,
-      obstacleIntervalMax:3.3,
-      bmpTruckAt:[0.3,0.68],   // the BMP blanket truck rolls through twice per shift
-      obstacleSpeedMult:1.6,
-      playerStart:{x:60,y:100}
-    },
-    {
-      type:'curtain', name:'LAKESHORE',
-      goal:'Final site. Deploy the turbidity curtain to plan.',
-      tips:[
-        {icon:SPRITE_SRC.boat, text:'One pass only. Steer from the top anchor down to the END anchor, following the dotted plan.'},
-        {icon:SPRITE_SRC.boom, text:'Your match to the plan (100% = perfect) x10 is added to your score. It also breaks ties.'}
-      ],
-      landEdge:78,   // wide enough for the construction site on shore
-      topY:44, bottomY:180,
-      bulge:150,
-      waypointCount:28,
-      planPreview:3.5,
-      playerStart:{x:42,y:44}
+      dir:'right', a0:22, a1:234,   // the plan runs left to right, out from the bank along the top
+      landEdge:68, farEdge:200,
+      bulge:58, wiggle:12, waves:5,
+      current:16,                   // px/s push away from the bank
+      waypointCount:34,
+      planPreview:3.5
     }
   ];
 
@@ -1217,6 +1233,7 @@
   let obstacles=[], basins=[], invulnTimer=0;
   let basinTimer=0, obstacleTimer=0, worldScroll=0, roadDifficulty=1, truckSchedule=[], bikeCooldown=0;
   let curtainWaypoints=[], curtainNextIdx=0, curtainDeviations=[], curtainTrail=[];
+  let curtainAccs=[];           // plan match % for each curtain site finished this run
   let curtainPlanTimer=0, curtainAccuracy=null, curtainDone=false, wakeTimer=0, curtainTime=0;
   let plumeFrac=0.1;           // how far the sediment plume has spread from shore toward the plan line (0-1)
   const PLUME_SPREAD_SEC=26;
@@ -1303,12 +1320,19 @@
     return grid[row][col];
   }
   function isSolid(ch){ return ch==='#'||ch==='~'; }
-  function curtainPathX(y,lvl){
+  // Curtain sites use two axes: "a" runs along the plan (anchor to anchor) and "c" runs out from the
+  // shore. LAKESHORE runs down the screen from a shore on the left; RIVERBANK runs left to right
+  // from a bank along the top.
+  const cScreen=(lvl,a,c)=>lvl.dir==='right'?{x:a,y:c}:{x:c,y:a};
+  const cLocal=(lvl,x,y)=>lvl.dir==='right'?{a:x,c:y}:{a:y,c:x};
+  function curtainPathC(a,lvl){
     // Fixed, deterministic curve so every player is scored against the identical plan.
-    const t=clamp((y-lvl.topY)/(lvl.bottomY-lvl.topY),0,1);
-    const x=lvl.landEdge + lvl.bulge*Math.sin(t*Math.PI) + 14*Math.sin(t*Math.PI*3);
-    return Math.max(lvl.landEdge+2, x);
+    const t=clamp((a-lvl.a0)/(lvl.a1-lvl.a0),0,1);
+    const c=lvl.landEdge + lvl.bulge*Math.sin(t*Math.PI) + (lvl.wiggle??14)*Math.sin(t*Math.PI*(lvl.waves??3));
+    return Math.max(lvl.landEdge+2, c);
   }
+  const curtainFar=lvl=>lvl.farEdge??((lvl.dir==='right'?VIEW_H:VIEW_W)-6);
+  const curtainAvg=()=>curtainAccs.length?Math.round(curtainAccs.reduce((x,y)=>x+y,0)/curtainAccs.length):null;
   // Main Street neighborhood: one house per lot. Top side: houses with garages and driveways facing
   // the street. Bottom side: house backs behind a privacy fence (the camera sees them from behind).
   const NB_LAWN_Y=46, NB_WALK_Y=56;           // top side: house base line, sidewalk top
@@ -1388,13 +1412,14 @@
       grid=[]; erosionTiles=[]; obstacles=[]; basins=[];
       curtainWaypoints=[];
       for(let i=0;i<lvl.waypointCount;i++){
-        const y=lvl.topY+(lvl.bottomY-lvl.topY)*(i/(lvl.waypointCount-1));
-        curtainWaypoints.push({y, x:curtainPathX(y,lvl)});
+        const a=lvl.a0+(lvl.a1-lvl.a0)*(i/(lvl.waypointCount-1));
+        curtainWaypoints.push({a, c:curtainPathC(a,lvl)});
       }
       curtainNextIdx=0; curtainDeviations=[]; curtainTrail=[]; curtainAccuracy=null; curtainDone=false;
       curtainPlanTimer=lvl.planPreview; curtainTime=0; plumeFrac=0.1;
       // start with the boat's center exactly on the plan's first point
-      player.x=curtainPathX(lvl.topY,lvl)-player.w/2; player.y=lvl.topY-player.h/2; player.facing='right';
+      const p0=cScreen(lvl, lvl.a0, curtainPathC(lvl.a0,lvl));
+      player.x=p0.x-player.w/2; player.y=p0.y-player.h/2; player.facing='right';
     } else {
       grid=lvl.map.map(r=>r.split(''));
       // Each blanket covers two tiles: a strip running downhill (1x2) where the patch is two rows
@@ -1543,7 +1568,7 @@
   function closePadSetup(){ padSetup=null; padMute=true; state='ADMIN'; show('adminScreen'); applySettings(); }
 
   function startGame(siteIdx){
-    score=0; displayScore=0; lives=MAX_LIVES; curtainAccuracy=null;
+    score=0; displayScore=0; lives=MAX_LIVES; curtainAccuracy=null; curtainAccs=[];
     levelIdx=siteIdx||0;
     beginSite();
   }
@@ -1619,6 +1644,18 @@
   }
   function showLevelClear(){
     const lvl=LEVELS[levelIdx];
+    if(lvl.type==='curtain'){   // plan bonus was added when the curtain sealed; tally it from there
+      const acc=curtainAccuracy||0;
+      $('clearRows').innerHTML=[{label:'CURTAIN '+acc+'%', qty:'GRADE '+grade(acc), val:acc*PTS_PER_ACCURACY},
+                                {label:'SITE SECURED', val:PTS_SITE_CLEAR}].map(tallyRowHtml).join('');
+      displayScore=score-acc*PTS_PER_ACCURACY; score+=PTS_SITE_CLEAR;
+      $('clearKicker').textContent=`SITE ${levelIdx+1} OF ${LEVELS.length}`;
+      $('clearTitle').textContent=lvl.name;
+      $('nextBtn').style.visibility='hidden';
+      state='CLEAR'; show('clearScreen');
+      tally={el:$('clearRows'), i:0, t:0.35, done:false, btn:$('nextBtn')};
+      return;
+    }
     const noHit=siteStats.hits===0;
     const bonus=PTS_SITE_CLEAR+(noHit?PTS_NO_HIT:0);
     const rows=[
@@ -1645,7 +1682,7 @@
       rows.push({label:'CREW SAFETY', qty:`${lives}x${PTS_PER_LIFE}`, val:lives*PTS_PER_LIFE});
       displayScore=score-acc*PTS_PER_ACCURACY;
       score+=lives*PTS_PER_LIFE;
-      $('resKicker').textContent='ALL 5 SITES';
+      $('resKicker').textContent=`ALL ${LEVELS.length} SITES`;
       $('resTitle').textContent='SITES SECURED!';
       $('resTitle').className='';
     } else {
@@ -1660,7 +1697,7 @@
     state='RESULTS';
     show('resultsScreen');
     tally={el:$('resRows'), i:0, t:0.4, done:false, btn:null};
-    const rank=await Board.rankFor(score, won?curtainAccuracy:null);
+    const rank=await Board.rankFor(score, curtainAvg());
     if(state==='RESULTS') $('resRank').textContent = score<=0 ? '' : rank<=10 ? `NEW TOP-10 SCORE! RANK #${rank}` : `RANK #${rank}`;
   }
   async function showBoard(highlightId){
@@ -1953,15 +1990,19 @@
     }
     if(curtainDone) return;
     curtainTime+=dt;
-    const v=inputVec();
-    const vy=Math.max(0,v.y); // one pass: the curtain only pays out toward the far anchor
-    if(v.x<0) player.facing='left'; else if(v.x>0) player.facing='right';
-    player.moving=(v.x!==0||vy>0);
-
-    const bx=clamp(player.x+player.w/2+v.x*CURTAIN_SPEED*dt, lvl.landEdge+2, VIEW_W-6);
-    const by=clamp(player.y+player.h/2+vy*CURTAIN_SPEED*dt, lvl.topY, lvl.bottomY);
+    const v=inputVec(), right=lvl.dir==='right';
+    const vA=Math.max(0, right?v.x:v.y);   // one pass: the curtain only pays out toward the far anchor
+    const vC=right?v.y:v.x;
+    if(right) player.facing='right'; else if(v.x<0) player.facing='left'; else if(v.x>0) player.facing='right';
+    player.moving=(vA>0||vC!==0);
+    // river current shoves the boat away from the bank, in gusts
+    const drift=lvl.current ? lvl.current*(0.75+0.35*Math.sin(curtainTime*1.3)) : 0;
+    const here=cLocal(lvl, player.x+player.w/2, player.y+player.h/2);
+    const a=clamp(here.a+vA*CURTAIN_SPEED*dt, lvl.a0, lvl.a1);
+    const c=clamp(here.c+(vC*CURTAIN_SPEED+drift)*dt, lvl.landEdge+2, curtainFar(lvl));
+    const pt=cScreen(lvl,a,c), bx=pt.x, by=pt.y;
     player.x=bx-player.w/2; player.y=by-player.h/2;
-    rainProgress=clamp((by-lvl.topY)/(lvl.bottomY-lvl.topY),0,1);
+    rainProgress=clamp((a-lvl.a0)/(lvl.a1-lvl.a0),0,1);
 
     // record the path by distance (not per frame) so the whole curtain stays drawn however long the run takes
     const lastPt=curtainTrail[curtainTrail.length-1];
@@ -1970,21 +2011,22 @@
       wakeTimer-=dt;
       if(wakeTimer<=0){
         wakeTimer=0.05;
-        particles.push({x:bx-v.x*10+(Math.random()-0.5)*4, y:by-vy*6+(Math.random()-0.5)*4, vx:-v.x*8, vy:-vy*8, life:0.7, max:0.7, color:'#cfe6f2', size:1, grav:0});
+        const m=right?{x:vA,y:vC}:{x:vC,y:vA};
+        particles.push({x:bx-m.x*10+(Math.random()-0.5)*4, y:by-m.y*6+(Math.random()-0.5)*4, vx:-m.x*8, vy:-m.y*8, life:0.7, max:0.7, color:'#cfe6f2', size:1, grav:0});
       }
     }
-    // score each plan point as the boat passes its row
-    while(curtainNextIdx<curtainWaypoints.length && by>=curtainWaypoints[curtainNextIdx].y){
-      curtainDeviations.push(curtainPointScore(Math.abs(bx-curtainWaypoints[curtainNextIdx].x)));
+    // score each plan point as the boat passes it
+    while(curtainNextIdx<curtainWaypoints.length && a>=curtainWaypoints[curtainNextIdx].a){
+      curtainDeviations.push(curtainPointScore(Math.abs(c-curtainWaypoints[curtainNextIdx].c)));
       curtainNextIdx++;
     }
-    if(by>=lvl.bottomY || curtainTime>=CURTAIN_TIME_LIMIT) finishCurtain(bx,by);
+    if(a>=lvl.a1 || curtainTime>=CURTAIN_TIME_LIMIT) finishCurtain(bx,by);
   }
   function finishCurtain(bx,by){
     // any stretch not reached before time ran out scores zero
     while(curtainNextIdx<curtainWaypoints.length){ curtainDeviations.push(0); curtainNextIdx++; }
     const accuracy=curtainRunningAccuracy();
-    curtainAccuracy=accuracy; curtainDone=true;
+    curtainAccuracy=accuracy; curtainDone=true; curtainAccs.push(accuracy);
     const bonus=accuracy*PTS_PER_ACCURACY;
     score+=bonus;
     rainProgress=1;
@@ -2177,7 +2219,7 @@
       const entry={
         id:Date.now()+'-'+Math.floor(Math.random()*1e6),
         name:name||'ANONYMOUS', company:company||'', crew:HERO.id,
-        score, siteReached:reached, curtainAccuracy,
+        score, siteReached:reached, curtainAccuracy:curtainAvg(),   // average over the curtain sites (tiebreaker)
         date:new Date().toISOString()
       };
       await Board.store.add(entry);
@@ -2613,26 +2655,27 @@
   }
 
   function drawCurtain(lvl){
-    // open water with drifting wave highlights
+    const right=lvl.dir==='right', L=lvl.landEdge, S=(a,c)=>cScreen(lvl,a,c);
+    // open water with drifting wave highlights (a river flows faster than the lake)
     ctx.fillStyle='#2a6f97'; ctx.fillRect(0,0,VIEW_W,VIEW_H);
     ctx.fillStyle='rgba(255,255,255,.12)';
     for(let y=6;y<VIEW_H;y+=9){
-      const off=(gameTime*6+y*7)%40;
-      for(let x=-off;x<VIEW_W;x+=40) ctx.fillRect(Math.round(x+((y*13)%17)),y,6,1);
+      const off=(gameTime*(right?20:6)+y*7)%40;
+      for(let x=(right?off-40:-off);x<VIEW_W;x+=40) ctx.fillRect(Math.round(x+((y*13)%17)),y,right?9:6,1);
     }
     // turbid water to be contained between shore and plan
     // the plume's leading edge: a wavy front between the shore and the plan line
     const f=plumeFrac;
-    const frontX=y=>{
-      const line=curtainPathX(y,lvl), reach=(line-lvl.landEdge)*f;
-      const wave=Math.sin(y*0.14+gameTime*1.3)*3+Math.sin(y*0.05-gameTime*0.7)*4;
-      return Math.min(line, lvl.landEdge+reach+wave*(1-f)*2.2);
+    const frontC=a=>{
+      const line=curtainPathC(a,lvl), reach=(line-L)*f;
+      const wave=Math.sin(a*0.14+gameTime*1.3)*3+Math.sin(a*0.05-gameTime*0.7)*4;
+      return Math.min(line, L+reach+wave*(1-f)*2.2);
     };
     ctx.save();
     ctx.beginPath();
-    ctx.moveTo(lvl.landEdge, lvl.topY);
-    for(let y=lvl.topY;y<=lvl.bottomY;y+=2) ctx.lineTo(frontX(y), y);
-    ctx.lineTo(lvl.landEdge, lvl.bottomY);
+    let q=S(lvl.a0,L); ctx.moveTo(q.x,q.y);
+    for(let a=lvl.a0;a<=lvl.a1;a+=2){ q=S(a,frontC(a)); ctx.lineTo(q.x,q.y); }
+    q=S(lvl.a1,L); ctx.lineTo(q.x,q.y);
     ctx.closePath();
     ctx.fillStyle='#7d6448'; ctx.fill();
     ctx.strokeStyle=curtainDone?'rgba(166,138,91,.0)':'rgba(166,138,91,.9)'; ctx.lineWidth=1; ctx.stroke();
@@ -2640,29 +2683,30 @@
     ctx.fillStyle='rgba(60,42,24,.35)';
     for(let i=0;i<26;i++){
       const h=hash2(i,7);
-      const x=lvl.landEdge+(h%160)+Math.sin(gameTime*0.6+i)*6, y=lvl.topY+((h>>8)%136)+Math.cos(gameTime*0.5+i)*4;
-      ctx.fillRect(Math.round(x),Math.round(y),8+(h>>4)%10,2);
+      q=S(lvl.a0+((h>>8)%Math.round(lvl.a1-lvl.a0))+Math.cos(gameTime*0.5+i)*4, L+(h%160)+Math.sin(gameTime*0.6+i)*6);
+      ctx.fillRect(Math.round(q.x),Math.round(q.y),right?2:8+(h>>4)%10,right?8+(h>>4)%10:2);
     }
     ctx.restore();
-    drawShoreSite(lvl);
+    if(right) drawRiverBank(lvl); else drawShoreSite(lvl);
     // the plan: buoy dots
-    for(let i=0, y=lvl.topY;y<=lvl.bottomY;y+=6, i++){
-      const x=Math.round(curtainPathX(y,lvl));
+    for(let i=0, a=lvl.a0;a<=lvl.a1;a+=6, i++){
+      q=S(a,curtainPathC(a,lvl)); const x=Math.round(q.x), y=Math.round(q.y);
       ctx.fillStyle='#0d0b08'; ctx.fillRect(x-2,y-2,4,4);
       ctx.fillStyle=i%2?'#fff':'#ff8a2a'; ctx.fillRect(x-1,y-1,2,2);
     }
-    // live guide: where the plan says the boat should be at this row
+    // live guide: where the plan says the boat should be at this point
     if(curtainPlanTimer<=0 && !curtainDone){
-      const bx=player.x+player.w/2, by=player.y+player.h/2;
-      const tx=curtainPathX(by,lvl), dev=Math.abs(bx-tx);
+      const bx=player.x+player.w/2, by=player.y+player.h/2, here=cLocal(lvl,bx,by);
+      const t=S(here.a, curtainPathC(here.a,lvl)), dev=Math.abs(here.c-curtainPathC(here.a,lvl));
       const col=dev<6?'#5ac24a':dev<14?'#e8b923':'#ff5a3a';
       ctx.strokeStyle=col; ctx.lineWidth=1; ctx.setLineDash([2,2]);
-      ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(tx,by); ctx.stroke(); ctx.setLineDash([]);
-      ctx.strokeRect(Math.round(tx)-3.5, Math.round(by)-3.5, 7, 7);
+      ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(t.x,t.y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.strokeRect(Math.round(t.x)-3.5, Math.round(t.y)-3.5, 7, 7);
     }
     // shore anchors
-    drawAnchor(lvl.landEdge, lvl.topY, false);
-    drawAnchor(lvl.landEdge, lvl.bottomY, !curtainDone && curtainPlanTimer<=0);
+    const A0=S(lvl.a0,L), A1=S(lvl.a1,L);
+    drawAnchor(A0.x, A0.y, false);
+    drawAnchor(A1.x, A1.y, !curtainDone && curtainPlanTimer<=0, right);
     // curtain laid so far
     drawCurtainTrailBoom(lvl);
     // boat
@@ -2674,8 +2718,9 @@
     } else {
       const left=Math.max(0,Math.ceil(CURTAIN_TIME_LIMIT-curtainTime));
       const acc=curtainDone?curtainAccuracy:curtainRunningAccuracy();
-      text('MATCH '+acc+'%', VIEW_W-4, 4, {align:'right', color:acc>=85?'#5ac24a':acc>=60?'#e8b923':'#ff5a3a'});
-      text('TIME '+left, VIEW_W-4, 14, {align:'right', color:left<=10?'#ff5a3a':'#eee3c8'});
+      const hy=right?VIEW_H-22:4;   // the river's top edge is the work site, so its readout sits low
+      text('MATCH '+acc+'%', VIEW_W-4, hy, {align:'right', color:acc>=85?'#5ac24a':acc>=60?'#e8b923':'#ff5a3a'});
+      text('TIME '+left, VIEW_W-4, hy+10, {align:'right', color:left<=10?'#ff5a3a':'#eee3c8'});
     }
   }
   // The land at site 5 is an active construction site: the source of the sediment the curtain contains.
@@ -2709,21 +2754,55 @@
     ctx.fillStyle='rgba(125,99,66,.6)';
     for(let i=0;i<5;i++){ const y=60+i*26+((gameTime*6+i*7)%10); ctx.fillRect(L-5,Math.round(y),5,2); }
   }
-  function drawAnchor(x,y,target){
+  // RIVERBANK: the work site runs along the top bank; the far bank is a strip of reeds at the bottom.
+  function drawRiverBank(lvl){
+    const L=lvl.landEdge, F=curtainFar(lvl)+6;
+    fillTex('grass',0.25,0,0,VIEW_W,8,'#4c7a3a');
+    fillTex('soil',GROUND_SCALE,0,8,VIEW_W,L-14,'#b0743f');
+    ctx.fillStyle='rgba(94,54,34,.45)';                          // tire tracks
+    for(let x=0;x<VIEW_W;x+=3){ ctx.fillRect(x,22+Math.round(Math.sin(x*0.05)*3),2,2); ctx.fillRect(x,30+Math.round(Math.sin(x*0.05)*3),2,2); }
+    ctx.fillStyle='#6b5232'; ctx.fillRect(0,L-6,VIEW_W,6);         // mud bank and the waterline
+    ctx.fillStyle='#8a6a40';
+    for(let x=0;x<VIEW_W;x+=4) ctx.fillRect(x,L-6+((x*7)%3),2,2);
+    ctx.fillStyle='rgba(255,255,255,.25)';
+    for(let x=0;x<VIEW_W;x+=3) ctx.fillRect(x,L+((x*5+Math.floor(gameTime*4))%3),2,1);
+    // silt fence between the work area and the bank
+    const fy=L-12;
+    ctx.fillStyle=SF_TRENCH; ctx.fillRect(4,fy+3,VIEW_W-8,2);
+    ctx.fillStyle=SF_FABRIC; ctx.fillRect(4,fy,VIEW_W-8,3);
+    ctx.fillStyle=SF_HI; ctx.fillRect(4,fy,VIEW_W-8,1);
+    for(let x=10;x<VIEW_W-6;x+=24){ ctx.fillStyle=SF_DARK; ctx.fillRect(x-1,fy-1,5,5); ctx.fillStyle=SF_STAKE; ctx.fillRect(x,fy,3,3); }
+    const put=(k,x,y)=>{ const sp=SITE5[k];
+      ctx.fillStyle='rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(x+sp.w/2, y+sp.h-1, sp.w*0.42, 2.5, 0, 0, Math.PI*2); ctx.fill();
+      ctx.drawImage(sp.img, Math.round(x), Math.round(y), sp.w, sp.h); };
+    put('crane', 196, fy-58);
+    put('stockpile', 8, fy-19);
+    put('dumptruck', 40, fy-25);
+    put('excavator', 120+Math.round(Math.sin(gameTime*1.5)), fy-29);
+    // muddy runoff seeping under the fence into the river
+    ctx.fillStyle='rgba(125,99,66,.6)';
+    for(let i=0;i<6;i++){ const x=20+i*40+((gameTime*6+i*7)%10); ctx.fillRect(Math.round(x),L-5,2,5); }
+    // far bank: reeds and grass
+    fillTex('grass',0.25,0,F,VIEW_W,VIEW_H-F,'#4c7a3a');
+    ctx.fillStyle='#6b5232'; ctx.fillRect(0,F,VIEW_W,2);
+    ctx.fillStyle='#2f5a24';
+    for(let x=2;x<VIEW_W;x+=5){ const h=3+(hash2(x,3)%4); ctx.fillRect(x,F-h+1,1,h); }
+  }
+  function drawAnchor(x,y,target,labelBelow){
     ctx.fillStyle='#0d0b08'; ctx.fillRect(x-3,y-4,7,7);
     ctx.fillStyle='#e8b923'; ctx.fillRect(x-2,y-3,5,5);
     if(target){
       const r=6+((gameTime*10)%8);
       ctx.strokeStyle=`rgba(232,185,35,${1-(r-6)/8})`; ctx.lineWidth=1;
       ctx.beginPath(); ctx.arc(x+0.5,y-0.5,r,0,Math.PI*2); ctx.stroke();
-      text('END', x+8, y-4, {color:'#e8b923'});
+      if(labelBelow) text('END', x, y+7, {align:'center', color:'#e8b923'}); else text('END', x+8, y-4, {color:'#e8b923'});
     }
   }
   // The curtain is one continuous float line from the shore anchor along the boat's path (no gaps),
   // closed to the end anchor once sealed. Seams mark each float section, like the real product.
   function drawCurtainTrailBoom(lvl){
-    const raw=[{x:lvl.landEdge,y:lvl.topY}].concat(curtainTrail);
-    if(curtainDone) raw.push({x:lvl.landEdge,y:lvl.bottomY});
+    const raw=[cScreen(lvl,lvl.a0,lvl.landEdge)].concat(curtainTrail);
+    if(curtainDone) raw.push(cScreen(lvl,lvl.a1,lvl.landEdge));
     if(raw.length<2) return;
     // smooth out the stair-steps of 8-way steering
     const pts=raw.map((p,i)=>{
@@ -2950,7 +3029,7 @@
     get level(){ return levelIdx; }, get accuracy(){ return curtainAccuracy; },
     jump(i){ startGame(i); }, setProgress(p){ rainProgress=p; },
     erodeAll(){ erosionTiles.forEach(t=>{ if(t.state==='dormant'){ t.state='active'; t.timer=99; } }); },
-    get boat(){ const l=LEVELS[levelIdx]; const by=player.y+player.h/2; return {x:player.x+player.w/2, y:by, target:l.type==='curtain'?curtainPathX(by,l):null}; },
+    get boat(){ const l=LEVELS[levelIdx]; const bx=player.x+player.w/2, by=player.y+player.h/2; if(l.type!=='curtain') return {x:bx,y:by,target:null}; const h=cLocal(l,bx,by); return {x:bx, y:by, a:h.a, c:h.c, target:curtainPathC(h.a,l), dir:l.dir}; },
     place(c,r){ player.x=c*TILE+3; player.y=r*TILE+3; },
     get units(){ return erosionTiles.filter(t=>t.state==='active').map(t=>({col:t.col,row:t.row,w:t.w,h:t.h,timer:t.timer})); },
     get grid(){ return grid; },
