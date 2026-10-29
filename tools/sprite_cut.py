@@ -55,13 +55,16 @@ def snap(img):
                 if px[x, y][3] < 128: px[x, y] = (0, 0, 0, 0)
                 else: px[x, y] = px[x, y][:3] + (255,)
         # edge pixels still tinted by the magenta background become a dark outline
-        src = img.copy(); sp = src.load(); W, H = img.size
-        for y in range(H):
-            for x in range(W):
-                r, g, b, al = sp[x, y]
-                if not al or not (r - g > 45 and b - g > 30): continue
-                if any(not (0 <= x+dx < W and 0 <= y+dy < H) or not sp[x+dx, y+dy][3] for dx, dy in ((1,0),(-1,0),(0,1),(0,-1))):
-                    px[x, y] = (58, 40, 62, 255)
+        W, H = img.size
+        for depth in range(3):   # peel inward: pass 1 outlines the edge, later passes clear what's behind it
+            src = img.copy(); sp = src.load()
+            for y in range(H):
+                for x in range(W):
+                    r, g, b, al = sp[x, y]
+                    if not al or not (r - g > 45 and b - g > 30): continue
+                    if any(not (0 <= x+dx < W and 0 <= y+dy < H) or not sp[x+dx, y+dy][3] or sp[x+dx, y+dy][:3] == (34, 26, 22)
+                           for dx, dy in ((1,0),(-1,0),(0,1),(0,-1))):
+                        px[x, y] = (34, 26, 22, 255) if depth == 0 else (0, 0, 0, 0)
         return img
     for y in range(img.height):
         for x in range(img.width):

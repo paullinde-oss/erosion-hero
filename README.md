@@ -31,7 +31,7 @@ Name entry also accepts typing letters directly on a keyboard.
 Generic USB pads number their buttons differently. Once per laptop: operator menu → CONTROLLER → press A, then B. After that A selects and lays blankets; B goes back (and also lays blankets during play). Start pauses.
 
 ## Character select
-After PRESS START, players pick from the six-person crew (Daryl, Sheryl, Marcus, Tanya, Rosa, Kenji). Below the crew, **UNLOCK SECRET HEROES** opens a second page of guest stars (Mike, Wayne, Oprah, Ralph, Leia, Donald, Chief, Taylor, plus one open slot). In the operator menu, SECRET HEROES → LOCKED keeps the button visible but locked. The leaderboard shows each player's face. Names and one-line bios are in `tools/build_crew.py`; the secret list is `SECRET_IDS` in `src/game.html`. Leia's walk frames are composited by `tools/build_leia_walk.py` (Canva refused that sprite sheet).
+After PRESS START, players pick from the six-person crew (Daryl, Sheryl, Marcus, Tanya, Rosa, Kenji). Below the crew, **UNLOCK SECRET HEROES** opens a second page of guest stars (Mike, Wayne, Oprah, Ralph, Leia, Donald, Chief, Taylor, Doug). In the operator menu, SECRET HEROES → LOCKED keeps the button visible but locked. The leaderboard shows each player's face. Names and one-line bios are in `tools/build_crew.py`; the secret list is `SECRET_IDS` in `src/game.html`. Leia's walk frames are composited by `tools/build_leia_walk.py` (Canva refused that sprite sheet).
 
 ## Tablet arcade cabinet (joystick + 1 button)
 - One button is enough: it starts the game, lays blankets, picks menu items and confirms letters in name entry. The joystick moves the hero and the menu cursor.
