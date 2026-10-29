@@ -30,6 +30,13 @@ src = {
         **{n: full(Image.open(art / "neighborhood" / "props" / f"frame{i}.png"))
            for i, n in enumerate(("bush", "flowerBush", "tree", "picket", "privacy", "mailbox"), 1)},
     },
+    # Uphill Street (seen from above, Canva art): cars point up; truck_bmp painted by tools/build_uphill.py
+    "up": {
+        "cars": [full(Image.open(art / "uphill" / "cars" / f"frame{i}.png")) for i in (1, 2, 3, 4)],
+        "truck": full(Image.open(art / "uphill" / "truck_bmp.png")),
+        **{n: full(Image.open(art / "uphill" / "lots" / f"frame{i}.png"))
+           for i, n in enumerate(("house1", "house2", "house3", "tree", "bush", "deck"), 1)},
+    },
     # BMP inlet protection product: original art, only resampled to game size (colors untouched)
     "basinProtected": uri(Image.open(art / "basin_protected.png")),
     # open grate before protection: drawn by tools/draw_grate.py from the real grate photo

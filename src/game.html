@@ -625,6 +625,8 @@
   const sized=d=>({img:mkImg(d.src), w:d.w, h:d.h});
   const CARS=SPRITE_SRC.cars.map(sized);
   const NB={front:SPRITE_SRC.nb.front.map(sized), back:SPRITE_SRC.nb.back.map(sized)};
+  const UP={cars:SPRITE_SRC.up.cars.map(sized), truck:sized(SPRITE_SRC.up.truck)};
+  ['house1','house2','house3','tree','bush','deck'].forEach(k=>{ UP[k]=sized(SPRITE_SRC.up[k]); });
   ['bush','flowerBush','tree','picket','privacy','mailbox'].forEach(k=>{ NB[k]=sized(SPRITE_SRC.nb[k]); });
   const BIKE=sized(SPRITE_SRC.bikeInspector), BMP_TRUCK=sized(SPRITE_SRC.bmpTruck);
   const SITE5={}; Object.keys(SPRITE_SRC.site5).forEach(k=>{ SITE5[k]=sized(SPRITE_SRC.site5[k]); });
@@ -782,6 +784,23 @@
       ],
       patrol:[[2,2],[13,2],[13,4],[7,4],[7,9],[13,9],[13,11],[2,11]],
       start:[2,1]
+    },
+    {
+      type:'road', dir:'up', name:'UPHILL STREET',
+      goal:'Runoff flows downhill. Protect the drains from the top down.',
+      tips:[
+        {icon:SPRITE_SRC.basinOpen, text:'Drains roll in from the top of the hill along both curbs. HOLD action on one to protect it.'},
+        {icon:TILE_SRC.eroding, text:'Every open drain uphill sends more runoff down the curb, so lower drains fill faster. Work top-down.'},
+        {icon:SPRITE_SRC.up.cars[0].src, text:'Two-way traffic: downhill on the left, uphill on the right. Watch for the ! flags.'}
+      ],
+      duration:32,
+      scrollSpeed:26,
+      basinSpawnInterval:3.6, basinMax:2,
+      basinFillTime:14, surge:0.5,   // seconds to overflow alone; +50% fill rate per open drain uphill
+      carSpeed:38, carScale:1.15,
+      obstacleIntervalMin:2.8, obstacleIntervalMax:4.2,
+      bmpTruckAt:[0.45],
+      playerStart:{x:150,y:150}
     },
     {
       type:'curtain', name:'RIVERBANK',
@@ -1400,7 +1419,13 @@
     rainProgress=0; invulnTimer=0;
     player.layProgress=0; player.layTarget=null; player.laying=false; player.facing='down'; player.moving=false;
     siteStats={covers:0,hits:0};
-    if(lvl.type==='road'){
+    if(lvl.type==='road' && lvl.dir==='up'){
+      grid=[]; erosionTiles=[]; obstacles=[]; basins=[];
+      basinTimer=1.2; obstacleTimer=2.2; truckSchedule=lvl.bmpTruckAt.slice();
+      worldScroll=0; roadDifficulty=1;
+      upLots={left:makeUpLots('left'), right:makeUpLots('right')};
+      player.x=lvl.playerStart.x; player.y=lvl.playerStart.y; player.facing='up';
+    } else if(lvl.type==='road'){
       grid=[]; erosionTiles=[]; obstacles=[]; basins=[];
       basinTimer=lvl.basinSpawnInterval*0.6;
       obstacleTimer=lvl.obstacleIntervalMin+1.5; truckSchedule=lvl.bmpTruckAt.slice();
@@ -2072,7 +2097,7 @@
         if(invulnTimer>0) invulnTimer-=dt;
         if(lvl.type==='road'){
           rainProgress+=dt/lvl.duration;
-          updateRoad(dt,lvl);
+          if(lvl.dir==='up') updateUphill(dt,lvl); else updateRoad(dt,lvl);
         } else if(lvl.type==='curtain'){
           updateCurtain(dt,lvl);
         } else {
@@ -2645,6 +2670,205 @@
       ctx.drawImage(o.sprite.img, ox, oy, o.w, o.h);   // vehicle sprites face left, the way traffic drives
     }
   }
+
+  // =====================================================================
+  //  UPHILL STREET: the same job seen from above. The hero walks up a hill (the world scrolls down),
+  //  traffic runs both ways, and runoff flows downhill along each curb: every open drain uphill of
+  //  another on the same curb sends it extra water, so it overflows sooner. Protect from the top down.
+  // =====================================================================
+  const VR_L=72, VR_R=184, VR_MID=(VR_L+VR_R)/2, VR_WALK=8;
+  let upLots={left:[],right:[]}, grassPat=null;
+  function makeUpLot(y, side){
+    const set=[UP.house1,UP.house2,UP.house3], house=set[(Math.random()*set.length)|0];
+    const gap=Math.round(14+Math.random()*16);
+    return {y, side, house, gap, h:house.h+gap, tree:Math.random()<0.6, bush:Math.random()<0.7, deck:Math.random()<0.3};
+  }
+  function makeUpLots(side){
+    const arr=[]; let y=VIEW_H+10-Math.random()*30;
+    while(y>-80){ const l=makeUpLot(0, side); y-=l.h; l.y=y; arr.push(l); }
+    return arr;
+  }
+  function scrollUpLots(arr, dy, side){
+    let top=arr.reduce((m,l)=>Math.min(m,l.y),Infinity);
+    for(let i=0;i<arr.length;i++){
+      arr[i].y+=dy;
+      if(arr[i].y>VIEW_H){ const l=makeUpLot(0, side); top-=l.h; l.y=top; arr[i]=l; }
+    }
+  }
+  function upBasinsAbove(b){ return basins.filter(o=>o!==b && o.state==='active' && o.side===b.side && o.y<b.y).length; }
+  function updateUphill(dt,lvl){
+    const v=inputVec();
+    // with no input the hero keeps trudging uphill with the scroll
+    if(v.x<0) player.facing='left'; else if(v.x>0) player.facing='right';
+    else if(v.y>0) player.facing='down'; else player.facing='up';
+    player.moving=true; player.animTime+=dt;
+    player.x=clamp(player.x+v.x*player.speed*dt, VR_L+2, VR_R-2-player.w);
+    player.y=clamp(player.y+v.y*player.speed*dt, 18, VIEW_H-6-player.h);
+
+    const scrollSpeed=lvl.scrollSpeed*(1+Math.min(1,rainProgress)*0.25);
+    const dy=scrollSpeed*dt;
+    worldScroll+=dy;
+    scrollUpLots(upLots.left, dy, 'left'); scrollUpLots(upLots.right, dy, 'right');
+
+    // drains appear uphill (top of the screen) on either curb
+    basinTimer-=dt;
+    if(basinTimer<=0 && basins.filter(b=>b.state==='active').length<lvl.basinMax){
+      const side=Math.random()<0.5?'left':'right', w=16, h=16;
+      basins.push({x:side==='left'?VR_L:VR_R-w, y:-h, w, h, side, state:'active', fill:0});
+      basinTimer=lvl.basinSpawnInterval*(0.85+Math.random()*0.3);
+    }
+    for(let i=basins.length-1;i>=0;i--){
+      const b=basins[i];
+      b.y+=dy;
+      if(b.state==='active'){
+        b.fill+=dt/lvl.basinFillTime*(1+lvl.surge*upBasinsAbove(b));
+        if(held.action && player.x<b.x+b.w && player.x+player.w>b.x && player.y<b.y+b.h && player.y+player.h>b.y){
+          b.state='covered';
+          burst(b.x+b.w/2,b.y+b.h/2,14,['#d9c8a1','#e8b923','#fff3c4'],50,0.55);
+          popup(b.x+b.w/2,b.y-4,'+'+PTS_COVER);
+          score+=PTS_COVER; siteStats.covers++;
+          sfx.cover();
+        } else if(b.fill>=1){
+          b.state='flooded';
+          burst(b.x+b.w/2,b.y+b.h/2,16,['#7d6448','#a68a5b','#4aa3df'],60,0.7);
+          loseLife('DRAIN OVERFLOWED!', b.x+b.w/2, b.y);
+          if(state!=='PLAYING') return;
+        }
+      }
+      if(b.y>VIEW_H){
+        if(b.state==='active'){ loseLife('MISSED A DRAIN!', b.x+b.w/2, VIEW_H-12); if(state!=='PLAYING') return; }
+        basins.splice(i,1);
+      }
+    }
+
+    // traffic: downhill lane on the left (comes from the top), uphill lane on the right (from the bottom)
+    const spawnCar=(dir,sprite,speed,kind)=>{
+      const k=lvl.carScale, w=Math.round(sprite.w*k), h=Math.round(sprite.h*k);
+      const laneX=dir==='down'?VR_MID-22:VR_MID+22;   // lanes hug the center line; the gutters stay clear
+      const x=Math.round(laneX-w/2+(Math.random()*4-2));
+      const y=dir==='down'?-h-speed*0.6:VIEW_H+speed*0.6;
+      obstacles.push({x, y, w, h, dir, kind, sprite, speed, honked:false});
+    };
+    obstacleTimer-=dt;
+    if(truckSchedule.length && rainProgress>=truckSchedule[0]){
+      truckSchedule.shift();
+      spawnCar('down', UP.truck, lvl.carSpeed*0.8, 'truck');
+      obstacleTimer=Math.max(obstacleTimer,1.8);
+      sfx.horn();
+    }
+    if(obstacleTimer<=0){
+      const dir=Math.random()<0.6?'down':'up';
+      spawnCar(dir, UP.cars[(Math.random()*UP.cars.length)|0], lvl.carSpeed*roadDifficulty*(0.9+Math.random()*0.25), 'car');
+      obstacleTimer=(lvl.obstacleIntervalMin+Math.random()*(lvl.obstacleIntervalMax-lvl.obstacleIntervalMin))/roadDifficulty;
+      roadDifficulty=Math.min(1.4, roadDifficulty*1.04);
+    }
+    // screen speed: downhill cars outrun the scroll; uphill cars pass the hero going up
+    obstacles.sort((a,b)=>a.dir==='down'?b.y-a.y:a.y-b.y);
+    for(const o of obstacles){
+      o.y+=(o.dir==='down'?scrollSpeed+o.speed:-o.speed)*dt;   // uphill cars out-climb the hero
+      // keep a following distance behind the car ahead in the same lane
+      const ahead=obstacles.filter(a=>a!==o && a.dir===o.dir && (o.dir==='down'?a.y>o.y:a.y<o.y))
+                           .reduce((m,a)=>!m||(o.dir==='down'?a.y<m.y:a.y>m.y)?a:m,null);
+      if(ahead){
+        if(o.dir==='down' && o.y+o.h+8>ahead.y) o.y=ahead.y-o.h-8;
+        if(o.dir==='up' && o.y<ahead.y+ahead.h+8) o.y=ahead.y+ahead.h+8;
+      }
+    }
+    for(let i=obstacles.length-1;i>=0;i--){
+      const o=obstacles[i];
+      if(!o.honked && o.kind==='car' && Math.abs((o.x+o.w/2)-(player.x+player.w/2))<14 &&
+         (o.dir==='down'?o.y+o.h>-4 && o.y<player.y:o.y<VIEW_H+4 && o.y>player.y)){ o.honked=true; sfx.honk(); }
+      if((o.dir==='down' && o.y>VIEW_H+60) || (o.dir==='up' && o.y+o.h<-60)){ obstacles.splice(i,1); continue; }
+      const hx=o.x+3, hw=o.w-6, hy=o.y+5, hh=o.h-10;   // forgiving: the body, not the mirrors
+      if(invulnTimer<=0 && player.x<hx+hw && player.x+player.w>hx && player.y<hy+hh && player.y+player.h>hy){
+        burst(player.x+5,player.y+5,12,['#fff','#e8b923','#d1440e'],70,0.4);
+        loseLife(o.kind==='truck'?'FLATTENED BY\nA BMP TRUCK!':'HIT BY TRAFFIC!', player.x+5, player.y-8);
+        if(state!=='PLAYING') return;
+      }
+    }
+  }
+  function drawUphill(lvl){
+    // lawns on both sides (pattern scrolls with the hill)
+    if(!grassPat && imgReady(IMAGES.grass)) grassPat=ctx.createPattern(IMAGES.grass,'repeat');
+    if(grassPat){ grassPat.setTransform(new DOMMatrix([0.25,0,0,0.25,0,worldScroll%64])); ctx.fillStyle=grassPat; } else ctx.fillStyle='#3f6530';
+    ctx.fillRect(0,0,VR_L-VR_WALK,VIEW_H); ctx.fillRect(VR_R+VR_WALK,0,VIEW_W-VR_R-VR_WALK,VIEW_H);
+    // lots: driveway to the sidewalk, house roof, trees and bushes in the gaps
+    for(const side of ['left','right']) for(const l of upLots[side]){
+      const H=l.house, y=Math.round(l.y), left=side==='left';
+      const hx=left?3:VIEW_W-3-H.w;
+      const dy0=y+Math.round(H.h*0.55), dh=12;
+      ctx.fillStyle='#a7a398';
+      if(left) ctx.fillRect(hx+H.w-2, dy0, VR_L-VR_WALK-(hx+H.w-2), dh); else ctx.fillRect(VR_R+VR_WALK, dy0, hx+2-(VR_R+VR_WALK), dh);
+      ctx.fillStyle='#8d897f';
+      if(left) ctx.fillRect(hx+H.w-2, dy0, VR_L-VR_WALK-(hx+H.w-2), 1); else ctx.fillRect(VR_R+VR_WALK, dy0, hx+2-(VR_R+VR_WALK), 1);
+      ctx.fillStyle='rgba(0,0,0,.25)'; ctx.fillRect(hx+2, y+3, H.w, H.h);   // roof shadow
+      ctx.drawImage(H.img, hx, y, H.w, H.h);
+      const gy=y+H.h;
+      if(l.tree){ const t=UP.tree, k=0.75; ctx.drawImage(t.img, left?hx+2:hx+H.w-t.w*k-2, gy+(l.gap-t.h*k)/2, t.w*k, t.h*k); }
+      if(l.bush){ const b=UP.bush; ctx.drawImage(b.img, left?VR_L-VR_WALK-b.w-1:VR_R+VR_WALK+1, dy0+dh+2, b.w, b.h); }
+    }
+    // sidewalks with seams
+    for(const x0 of [VR_L-VR_WALK, VR_R]){
+      ctx.fillStyle='#77746c'; ctx.fillRect(x0,0,VR_WALK,VIEW_H);
+      ctx.fillStyle='#5a5852';
+      for(let y=(worldScroll%20)-20;y<VIEW_H;y+=20) ctx.fillRect(x0,Math.round(y),VR_WALK,1);
+    }
+    ctx.fillStyle='#8c897f'; ctx.fillRect(VR_L-1,0,1,VIEW_H); ctx.fillRect(VR_R,0,1,VIEW_H);   // curbs
+    // road
+    const asp=texture('asphalt',0.5);
+    if(asp){ asp.setTransform(new DOMMatrix([0.5,0,0,0.5,VR_L,worldScroll%64])); ctx.fillStyle=asp; } else ctx.fillStyle='#3a3a3a';
+    ctx.fillRect(VR_L,0,VR_R-VR_L,VIEW_H);
+    ctx.fillStyle='#d8d4c8'; ctx.fillRect(VR_L+1,0,1,VIEW_H); ctx.fillRect(VR_R-2,0,1,VIEW_H);
+    ctx.fillStyle='#e8c52a';
+    for(let y=(worldScroll%22)-22;y<VIEW_H;y+=22) ctx.fillRect(Math.round(VR_MID)-1,Math.round(y),2,12);
+    // runoff: a muddy stream down each gutter, from the top of the hill to the lowest open drain
+    for(const side of ['left','right']){
+      const open=basins.filter(b=>b.side===side && (b.state==='active' || b.state==='flooded'));
+      if(!open.length) continue;
+      const low=open.reduce((m,b)=>b.y>m.y?b:m,open[0]);
+      const gx=side==='left'?VR_L+2:VR_R-6;
+      ctx.fillStyle='rgba(125,99,66,.75)'; ctx.fillRect(gx,0,4,Math.round(low.y+low.h/2));
+      ctx.fillStyle='rgba(200,180,140,.5)';
+      for(let y=(worldScroll*2.2%9);y<low.y;y+=9) ctx.fillRect(gx+1,Math.round(y),2,3);
+    }
+    // drains: open ones show how full they are
+    for(const b of basins){
+      const bx=Math.round(b.x), by=Math.round(b.y);
+      if(b.state==='covered'){ ctx.drawImage(IMAGES.basinDonut, bx, by, b.w, b.h); continue; }
+      ctx.drawImage(IMAGES.basinCovered, bx, by, b.w, b.h);
+      if(b.state==='flooded'){ ctx.fillStyle='rgba(125,99,66,.75)'; ctx.fillRect(bx-2,by-2,b.w+4,b.h+4); continue; }
+      const p=0.5+0.5*Math.sin(gameTime*8), urgent=b.fill>0.7;
+      ctx.strokeStyle=urgent?`rgba(255,90,58,${0.5+p*0.5})`:`rgba(232,185,35,${0.4+p*0.6})`; ctx.lineWidth=1;
+      ctx.strokeRect(bx-1.5,by-1.5,b.w+3,b.h+3);
+      const bw=b.w+2, fx=bx-1, fy=by-5;
+      ctx.fillStyle='#0d0b08'; ctx.fillRect(fx,fy,bw,3);
+      ctx.fillStyle=b.fill>0.7?'#ff5a3a':b.fill>0.4?'#e8b923':'#5ac24a'; ctx.fillRect(fx+1,fy+1,Math.round((bw-2)*clamp(b.fill,0,1)),1);
+    }
+    // incoming-traffic flags at the top (downhill) and bottom (uphill) edges
+    for(const o of obstacles){
+      const off=o.dir==='down'?o.y+o.h<0:o.y>VIEW_H;
+      if(!off || Math.floor(gameTime*10)%2) continue;
+      const wx=Math.round(o.x+o.w/2-5), wy=o.dir==='down'?2:VIEW_H-14;
+      ctx.fillStyle='#0d0b08'; ctx.fillRect(wx-1,wy-1,12,12);
+      ctx.fillStyle=o.kind==='truck'?'#ef6420':'#e8b923'; ctx.fillRect(wx,wy,10,10);
+      drawPixelSprite(BANG,{r:'#0d0b08'},wx+2,wy+2,1);
+    }
+    // vehicles and the hero, back to front
+    const items=obstacles.filter(o=>o.y<VIEW_H && o.y+o.h>0).map(o=>({bottom:o.y+o.h, o}));
+    items.push({bottom:player.y+player.h, hero:true});
+    items.sort((a,b)=>a.bottom-b.bottom);
+    for(const it of items){
+      if(it.hero){ drawPlayer(); continue; }
+      const o=it.o, ox=Math.round(o.x), oy=Math.round(o.y);
+      ctx.fillStyle='rgba(0,0,0,.3)'; ctx.fillRect(ox+2, oy+3, o.w, o.h);
+      // headlight beams ahead of each car
+      ctx.fillStyle='rgba(255,240,170,.16)';
+      if(o.dir==='down'){ ctx.beginPath(); ctx.moveTo(ox+3,oy+o.h); ctx.lineTo(ox-3,oy+o.h+22); ctx.lineTo(ox+o.w+3,oy+o.h+22); ctx.lineTo(ox+o.w-3,oy+o.h); ctx.fill(); }
+      else { ctx.beginPath(); ctx.moveTo(ox+3,oy); ctx.lineTo(ox-3,oy-22); ctx.lineTo(ox+o.w+3,oy-22); ctx.lineTo(ox+o.w-3,oy); ctx.fill(); }
+      if(o.dir==='down'){ ctx.save(); ctx.translate(ox+o.w, oy+o.h); ctx.rotate(Math.PI); ctx.drawImage(o.sprite.img,0,0,o.w,o.h); ctx.restore(); }
+      else ctx.drawImage(o.sprite.img, ox, oy, o.w, o.h);
+    }
+  }
   function drawSidewalk(y,h){
     ctx.fillStyle='#77746c'; ctx.fillRect(0,y,VIEW_W,h);
     ctx.fillStyle='#8c897f'; ctx.fillRect(0,y,VIEW_W,1);
@@ -2959,7 +3183,8 @@
     ctx.setTransform(RENDER_SCALE,0,0,RENDER_SCALE, sx*RENDER_SCALE, (HUD_H+sy)*RENDER_SCALE);
     ctx.save();
     ctx.beginPath(); ctx.rect(0,0,VIEW_W,VIEW_H); ctx.clip();
-    if(lvl.type==='road') drawRoad();
+    if(lvl.type==='road' && lvl.dir==='up') drawUphill(lvl);
+    else if(lvl.type==='road') drawRoad();
     else if(lvl.type==='curtain') drawCurtain(lvl);
     else drawYard();
     drawFX();
@@ -3036,7 +3261,7 @@
     get siteHits(){ return siteStats.hits; },
     get crew(){ return HERO.id; }, get bikes(){ return obstacles.filter(o=>o.kind==="bike").map(o=>Math.round(o.x)); }, get mode(){ return settings.mode; },
     isBadName(n){ return isBadName(n); },
-    get hero(){ return {x:player.x, y:player.y, laying:player.laying, dir:player.layDir}; }
+    get banner(){ return banner&&banner.text; }, get cars(){ return obstacles.map(o=>({x:o.x,y:o.y,w:o.w,h:o.h,dir:o.dir})); }, get basins(){ return basins.map(b=>({x:b.x,y:b.y,side:b.side,state:b.state,fill:b.fill})); }, get hero(){ return {x:player.x, y:player.y, laying:player.laying, dir:player.layDir}; }
   };
 
   applySettings();

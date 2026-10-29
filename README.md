@@ -50,8 +50,18 @@ chrome --kiosk --autoplay-policy=no-user-gesture-required "file:///path/to/Erosi
 ## Leaderboard / Firebase
 Scores are saved in this browser's localStorage (`erosionHeroLeads_v1`, same key as the prototype). The store is a small async adapter (`LocalStore` in `src/game.html`). For Firebase, implement the same `list()`, `add(entry)` and `clear()` methods against Firestore and assign the result to `Board.store`. Nothing else needs to change.
 
+## The seven sites
+1. **Residential Lot**: blankets
+2. **Main Street**: catch basins, side-scrolling street with the BMP truck
+3. **Hillside Grading**: blankets on slopes
+4. **Lakeshore**: turbidity curtain, top to bottom from the shore
+5. **Detention Pond**: blankets around a pond
+6. **Uphill Street**: catch basins seen from above. The hero walks uphill, traffic runs both ways, and every open drain uphill makes the ones below it overflow sooner (work top-down). Tuning lives in its LEVELS entry (`basinFillTime`, `surge`, `carSpeed`, `obstacleInterval*`).
+7. **Riverbank**: turbidity curtain, left to right along the bank while the current pushes the boat out
+
 ## Scoring
-- +50 per erosion control blanket (each covers 2 tiles), +25 per protected inlet; −15 per life lost.
-- Each of sites 1–4: +100 for clearing the site, +100 more if you finished it without getting hit.
-- Final site (one pass, 45s limit): your match to the plan, 0–100%, × 10 points (max 1,000). Being 5px off the line on average scores about 85%; only a near-perfect trace gets 100%. You also get 50 points per remaining life.
-- Leaderboard ties are broken by curtain accuracy, then by whoever scored first.
+- +50 per erosion control blanket (each covers 2 tiles), +25 per protected inlet; -15 per life lost.
+- Blanket and basin sites: +100 for clearing the site, +100 more if you finished it without getting hit.
+- Curtain sites (one pass each, 45s limit): your match to the plan, 0-100%, x 10 points (max 1,000), plus +100 for securing the site (Lakeshore). Being 5px off the line on average scores about 85%; only a near-perfect trace gets 100%.
+- Finishing all seven: +50 per remaining life.
+- Leaderboard ties are broken by the average curtain match, then by whoever scored first.
