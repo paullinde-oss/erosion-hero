@@ -51,13 +51,14 @@ chrome --kiosk --autoplay-policy=no-user-gesture-required "file:///path/to/Erosi
 Scores are saved in this browser's localStorage (`erosionHeroLeads_v1`, same key as the prototype). The store is a small async adapter (`LocalStore` in `src/game.html`). For Firebase, implement the same `list()`, `add(entry)` and `clear()` methods against Firestore and assign the result to `Board.store`. Nothing else needs to change.
 
 ## The seven sites
+Blankets first, then catch basins, then the two turbidity curtains.
 1. **Residential Lot**: blankets
-2. **Main Street**: catch basins, side-scrolling street with the BMP truck
-3. **Hillside Grading**: blankets on slopes
-4. **Lakeshore**: turbidity curtain, top to bottom from the shore
-5. **Detention Pond**: blankets around a pond
-6. **Uphill Street**: catch basins seen from above. The hero walks uphill, traffic runs both ways, and every open drain uphill makes the ones below it overflow sooner (work top-down). Tuning lives in its LEVELS entry (`basinFillTime`, `surge`, `carSpeed`, `obstacleInterval*`).
-7. **Riverbank**: turbidity curtain, left to right along the bank while the current pushes the boat out
+2. **Hillside Grading**: blankets on slopes
+3. **Detention Pond**: blankets around a pond
+4. **Main Street**: catch basins, side-scrolling street with the BMP truck
+5. **Uphill Street**: catch basins seen from above. The hero walks uphill, traffic runs both ways, and every open drain uphill makes the ones below it overflow sooner (work top-down). Tuning lives in its LEVELS entry (`basinFillTime`, `surge`, `carSpeed`, `obstacleInterval*`).
+6. **Lakeshore**: turbidity curtain, top to bottom from the shore
+7. **Riverbank**: turbidity curtain, left to right along the bank while the current pushes the boat out (finale)
 
 ## Scoring
 - +50 per erosion control blanket (each covers 2 tiles), +25 per protected inlet; -15 per life lost.

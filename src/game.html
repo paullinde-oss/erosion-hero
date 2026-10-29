@@ -698,24 +698,6 @@
       start:[2,6]
     },
     {
-      type:'road', name:'MAIN STREET',
-      goal:'Protect every storm drain on a live road.',
-      tips:[
-        {icon:SPRITE_SRC.basinOpen, text:'Open catch basins scroll in along both curbs.'},
-        {icon:SPRITE_SRC.basinProtected, text:'Touch one while HOLDING action to install inlet protection.'},
-        {icon:SPRITE_SRC.cars[0].src, text:'A flashing ! means traffic incoming. A missed drain costs a life.'}
-      ],
-      duration:42,
-      scrollSpeed:34,
-      basinSpawnInterval:3.4,
-      basinMax:2,
-      obstacleIntervalMin:1.9,
-      obstacleIntervalMax:3.3,
-      bmpTruckAt:[0.3,0.68],   // the BMP blanket truck rolls through twice per shift
-      obstacleSpeedMult:1.6,
-      playerStart:{x:60,y:100}
-    },
-    {
       type:'yard', name:'HILLSIDE GRADING',
       goal:'More slopes and a longer Inspector route.',
       tips:[
@@ -742,20 +724,6 @@
       ],
       patrol:[[2,2],[13,2],[13,6],[7,6],[7,11],[2,11]],
       start:[2,1]
-    },
-    {
-      type:'curtain', name:'LAKESHORE',
-      goal:'Deploy the turbidity curtain to plan.',
-      tips:[
-        {icon:SPRITE_SRC.boat, text:'One pass only. Steer from the top anchor down to the END anchor, following the dotted plan.'},
-        {icon:SPRITE_SRC.boom, text:'Your match to the plan (100% = perfect) x10 is added to your score. It also breaks ties.'}
-      ],
-      landEdge:78,   // wide enough for the construction site on shore
-      dir:'down', a0:44, a1:180,   // the plan runs top to bottom, out from the shore on the left
-      bulge:150,
-      waypointCount:28,
-      planPreview:3.5,
-      playerStart:{x:42,y:44}
     },
     {
       type:'yard', name:'DETENTION POND',
@@ -786,6 +754,24 @@
       start:[2,1]
     },
     {
+      type:'road', name:'MAIN STREET',
+      goal:'Protect every storm drain on a live road.',
+      tips:[
+        {icon:SPRITE_SRC.basinOpen, text:'Open catch basins scroll in along both curbs.'},
+        {icon:SPRITE_SRC.basinProtected, text:'Touch one while HOLDING action to install inlet protection.'},
+        {icon:SPRITE_SRC.cars[0].src, text:'A flashing ! means traffic incoming. A missed drain costs a life.'}
+      ],
+      duration:42,
+      scrollSpeed:34,
+      basinSpawnInterval:3.4,
+      basinMax:2,
+      obstacleIntervalMin:1.9,
+      obstacleIntervalMax:3.3,
+      bmpTruckAt:[0.3,0.68],   // the BMP blanket truck rolls through twice per shift
+      obstacleSpeedMult:1.6,
+      playerStart:{x:60,y:100}
+    },
+    {
       type:'road', dir:'up', name:'UPHILL STREET',
       goal:'Runoff flows downhill. Protect the drains from the top down.',
       tips:[
@@ -801,6 +787,20 @@
       obstacleIntervalMin:2.8, obstacleIntervalMax:4.2,
       bmpTruckAt:[0.45],
       playerStart:{x:150,y:150}
+    },
+    {
+      type:'curtain', name:'LAKESHORE',
+      goal:'Deploy the turbidity curtain to plan.',
+      tips:[
+        {icon:SPRITE_SRC.boat, text:'One pass only. Steer from the top anchor down to the END anchor, following the dotted plan.'},
+        {icon:SPRITE_SRC.boom, text:'Your match to the plan (100% = perfect) x10 is added to your score. It also breaks ties.'}
+      ],
+      landEdge:78,   // wide enough for the construction site on shore
+      dir:'down', a0:44, a1:180,   // the plan runs top to bottom, out from the shore on the left
+      bulge:150,
+      waypointCount:28,
+      planPreview:3.5,
+      playerStart:{x:42,y:44}
     },
     {
       type:'curtain', name:'RIVERBANK',
