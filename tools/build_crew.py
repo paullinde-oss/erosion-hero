@@ -20,6 +20,7 @@ CREW = [  # id, name, line shown on the select screen
     ("oprah", "OPRAH", "And YOU get a blanket! And YOU get a blanket!"),
     ("ralph", "RALPH", "Hates erosion more than he hates the Foot Clan."),
     ("wayne", "WAYNE", "The Great One. Never misses an open slope."),
+    ("chief", "CHIEF", "Wake me when there's a slope to save."),
     ("donald", "DONALD", "Lays the best blankets. Tremendous blankets."),
 ]
 # select-grid face crop (fractions of the portrait); default is the top of the portrait
