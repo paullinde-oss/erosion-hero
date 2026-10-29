@@ -21,25 +21,27 @@ CREW = [  # id, name, line shown on the select screen
     ("ralph", "RALPH", "Hates erosion more than he hates the Foot Clan."),
     ("wayne", "WAYNE", "The Great One. Never misses an open slope."),
     ("chief", "CHIEF", "Wake me when there's a slope to save."),
+    ("taylor", "TAYLOR", "Shakes off the silt. Never ever getting washed out again."),
     ("donald", "DONALD", "Lays the best blankets. Tremendous blankets."),
 ]
 # select-grid face crop (fractions of the portrait); default is the top of the portrait
 FACE_BOX = {"oprah": (0.22, 0.29, 0.78, 0.85)}  # her portrait has a speech bubble up top
 def uri(img):
     b = io.BytesIO(); img.save(b, "PNG"); return "data:image/png;base64," + base64.b64encode(b.getvalue()).decode()
-def key_out(img):
+PINK_OUTFITS = {"taylor"}   # pink costumes: key out only near-pure magenta so the sequins survive
+def key_out(img, strict=False):
     img = img.convert("RGBA"); px = img.load()
     for y in range(img.height):
         for x in range(img.width):
             r, g, b, a = px[x, y]
-            if (r > 200 and b > 200 and g < 90) or (r - g > 70 and b - g > 70): px[x, y] = (0, 0, 0, 0)
+            if (r > 200 and b > 200 and g < 90) or (not strict and r - g > 70 and b - g > 70): px[x, y] = (0, 0, 0, 0)
     return img
 out = []
 for cid, name, line in CREW:
     d = root / "art" / "crew" / cid
     w = [Image.open(d / "walk" / f"frame{i}.png") for i in range(1, 9)]
     lay = [Image.open(d / "lay" / f"frame{i}.png") for i in range(1, 5)]
-    por = key_out(Image.open(root / "art" / "canva" / f"portrait_{cid}_raw.png"))
+    por = key_out(Image.open(root / "art" / "canva" / f"portrait_{cid}_raw.png"), cid in PINK_OUTFITS)
     por = por.crop(por.getbbox())
     side = max(por.size); sq = Image.new("RGBA", (side, side)); sq.alpha_composite(por, ((side - por.width) // 2, side - por.height))
     portrait = sq.resize((128, 128), Image.LANCZOS)
