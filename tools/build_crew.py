@@ -35,6 +35,15 @@ def key_out(img, strict=False):
         for x in range(img.width):
             r, g, b, a = px[x, y]
             if (r > 200 and b > 200 and g < 90) or (not strict and r - g > 70 and b - g > 70): px[x, y] = (0, 0, 0, 0)
+    if strict:
+        # magenta-tinted halo along the cut edge (e.g. hair): peel it off a few pixels deep from the
+        # background only, so pink sequins inside the outfit are untouched
+        tint = lambda c: c[3] and c[0] - c[1] > 25 and c[2] - c[1] > 15
+        for _ in range(4):
+            edge = [(x, y) for y in range(img.height) for x in range(img.width) if tint(px[x, y]) and
+                    any(not (0 <= x+dx < img.width and 0 <= y+dy < img.height) or not px[x+dx, y+dy][3]
+                        for dx, dy in ((1,0),(-1,0),(0,1),(0,-1)))]
+            for x, y in edge: px[x, y] = (0, 0, 0, 0)
     return img
 out = []
 for cid, name, line in CREW:
