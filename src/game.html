@@ -1603,7 +1603,8 @@
     else openCharSelect();
   }
   function goTitle(){
-    state='TITLE'; titleSel='play'; renderTitleSel();
+    state='TITLE'; titleSel='play'; renderTitleSel(); codeUnlocked=false; cheatPos=0;
+    if(CODE_IDS.includes(HERO.id)) HERO=CREW[0];
     hideAll(); show('titleScreen');
     attractIdx=0; attractT=0; setAttract(0);
     refreshTitleScores();
@@ -1611,17 +1612,25 @@
   }
   // ---------- character select ----------
   // Main crew on the first page; guest stars behind "UNLOCK SECRET HEROES" (operator menu can lock them).
-  const SECRET_IDS=['mike','wayne','oprah','ralph','leia','donald','chief','taylor','doug'], SECRET_SLOTS=9, CS_COLS=3;
+  const SECRET_IDS=['mike','wayne','oprah','donald','taylor','doug','hogan'], SECRET_SLOTS=9, CS_COLS=3;
+  // Cheat-code heroes: hidden from the Secret Heroes page until UP UP DOWN DOWN LEFT RIGHT LEFT RIGHT is entered
+  // there. They lock again when the game returns to the title, so the next player doesn't see them.
+  const CODE_IDS=['ralph','chief','leia'], CHEAT=['up','up','down','down','left','right','left','right'];
+  let codeUnlocked=false, cheatPos=0;
   const KEY_SVG='<svg class="cs-ico" viewBox="0 0 12 7" shape-rendering="crispEdges"><path fill="#ffd23a" d="M1 1h4v1h1v1h6v2h-1v1h-1v-1h-1v1h-1v-1h-3v1h-1v1h-4v-1h-1v-4h1z"/><path class="hole" fill="#1d2f8a" d="M2 3h2v2h-2z"/><path fill="#fff3c4" d="M1 1h4v1h-4z"/></svg>';
   const LOCK_SVG='<svg class="cs-ico" viewBox="0 0 8 9" shape-rendering="crispEdges"><path fill="#9aa6c8" d="M2 0h4v1h1v3h-1v-3h-4v3h-1v-3h1z"/><path fill="#c9ced8" d="M0 4h8v5h-8z"/><path fill="#5a6280" d="M3 5h2v2h-1v1h-1z"/></svg>';
   let csIdx=0, csPicked=0, csView='crew', csEntries=[];
-  const isSecret=c=>SECRET_IDS.includes(c.id);
+  const isSecret=c=>SECRET_IDS.includes(c.id)||CODE_IDS.includes(c.id);
   function csBuildEntries(){
-    const heroes=csView==='crew' ? CREW.filter(c=>!isSecret(c))
-      : SECRET_IDS.map(id=>crewById(id)).filter(Boolean);
-    const e=heroes.map((c,i)=>({kind:'hero', c, r:Math.floor(i/CS_COLS), col:(i%CS_COLS)*2, span:2}));
-    if(csView==='secret') for(let i=heroes.length;i<SECRET_SLOTS;i++) e.push({kind:'empty', r:Math.floor(i/CS_COLS), col:(i%CS_COLS)*2, span:2});
-    const rows=Math.ceil(Math.max(heroes.length, csView==='secret'?SECRET_SLOTS:0)/CS_COLS);
+    const heroes=csView==='crew' ? CREW.filter(c=>!isSecret(c)) : SECRET_IDS.map(id=>crewById(id)).filter(Boolean);
+    const slots=SECRET_SLOTS+(codeUnlocked?CS_COLS:0);
+    const at=i=>({r:Math.floor(i/CS_COLS), col:(i%CS_COLS)*2, span:2});
+    const e=heroes.map((c,i)=>Object.assign({kind:'hero', c}, at(i)));
+    if(csView==='secret'){
+      for(let i=heroes.length;i<SECRET_SLOTS;i++) e.push(Object.assign({kind:'empty'}, at(i)));
+      if(codeUnlocked) CODE_IDS.map(id=>crewById(id)).filter(Boolean).forEach((c,k)=>e.push(Object.assign({kind:'hero', c}, at(SECRET_SLOTS+k))));
+    }
+    const rows=Math.ceil(Math.max(heroes.length, csView==='secret'?slots:0)/CS_COLS);
     e.push({kind:csView==='crew'?'unlock':'back', r:rows, col:0, span:CS_COLS*2});
     return e;
   }
@@ -1666,6 +1675,7 @@
   function openCharSelect(){
     state='CHARSEL'; csPicked=0;
     if(isSecret(HERO) && !settings.secretHeroes) HERO=CREW[0];
+    if(CODE_IDS.includes(HERO.id) && !codeUnlocked) HERO=CREW[0];
     csView=isSecret(HERO)?'secret':'crew'; buildCharGrid();
     csIdx=Math.max(0, csEntries.findIndex(e=>e.c===HERO));
     show('charScreen'); renderCharSel();
@@ -1691,6 +1701,11 @@
     let i=csIdx;
     const inRow=r=>nav.filter(k=>csEntries[k].r===r);
     const nearest=(r,c)=>inRow(r).reduce((a,k)=>Math.abs(mid(k)-c)<Math.abs(mid(a)-c)?k:a, inRow(r)[0]);
+    if(csView==='secret' && !codeUnlocked){
+      const dir=['up','down','left','right'].find(d=>pressed[d]);
+      if(dir){ cheatPos=(dir===CHEAT[cheatPos])?cheatPos+1:(dir===CHEAT[0]?1:0);
+        if(cheatPos===CHEAT.length){ codeUnlocked=true; cheatPos=0; sfx.cover(); csSetView('secret', SECRET_IDS.length+(SECRET_SLOTS-SECRET_IDS.length)); return; } }
+    }
     if(rep.left||rep.right){ const row=inRow(csEntries[i].r), j=row.indexOf(i); i=row[(j+(rep.right?1:row.length-1))%row.length]; }
     if(rep.up) i=nearest((csEntries[i].r+rows-1)%rows, mid(i));
     if(rep.down) i=nearest((csEntries[i].r+1)%rows, mid(i));
