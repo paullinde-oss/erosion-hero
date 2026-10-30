@@ -727,10 +727,12 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   //  SETTINGS (operator menu, persisted on this device)
   // =====================================================================
   const SETTINGS_KEY='erosionHeroSettings_v1';
-  const settings=Object.assign({music:true, sfx:true, crt:true, idleReset:true, mode:'public', secretHeroes:true, pin:'123', leadsExportedAt:null, padA:null, padB:null}, (()=>{
+  const settings=Object.assign({music:true, sfx:true, crt:false, idleReset:true, mode:'public', secretHeroes:true, pin:'123', leadsExportedAt:null, padA:null, padB:null}, (()=>{
     try{ return JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'); }catch(e){ return {}; }
   })());
   function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }catch(e){} }
+  // scanlines now default OFF (they blur small faces); switch off once on browsers that saved them ON
+  if(!settings.crtOffV2){ settings.crt=false; settings.crtOffV2=true; saveSettings(); }
   function applySettings(){
     document.body.classList.toggle('no-crt', !settings.crt);
     Snd.setVolumes();
