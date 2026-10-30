@@ -886,7 +886,7 @@
       const l=Object.assign({}, b);
       if(hard){
         if(l.type==='yard'){
-          l.spawnInterval*=0.8; l.activeLifetime*=0.82; l.inspectorSpeed*=1.18;
+          l.spawnInterval*=0.85; l.activeLifetime*=0.9; l.inspectorSpeed*=1.15; l.maxActive+=1;   // a third patch at once
         } else if(l.type==='road' && l.dir==='up'){
           l.carSpeed*=1.18; l.obstacleIntervalMin*=0.8; l.obstacleIntervalMax*=0.8;
           l.scrollSpeed*=1.12; l.basinSpawnInterval*=0.85; l.basinMax+=1;
