@@ -27,6 +27,7 @@ PRESS START plays. HOW TO PLAY and LEADERBOARD are below it (joystick down/left/
 - **Idle reset:** title-screen menus return to the title after 30s with no input; a game in progress after 60s; screens in the middle of a run (site briefings, tallies, ending, name entry) after 90s.
 
 ## Event modes (operator menu > EVENT MODE)
+Difficulty follows the mode: CONFERENCE plays the base tuning (built for one or two tries at a booth); PUBLIC is harder on every site (faster spawns and traffic, quicker Inspector, stronger river current, stricter curtain match). The site briefing shows which one is active. Tuning lives in `applyDifficulty()` in `src/game.html`.
 - **PUBLIC** (default): names only. When `FIREBASE_CONFIG` is set in `src/game.html`, scores go to the online leaderboard. Each score is saved on the device first and uploaded when there's internet, so nothing is lost offline. The title has no badge.
 - **CONFERENCE**: offline board on this laptop only (browser storage), name + company, title shows "CONFERENCE EDITION". **EXPORT CSV** downloads the leads ranked by score (the top row is your prize winner). **RESET** only works after exporting the current list, then asks to confirm, so the board is ready for the next event.
 - Both modes reject offensive names, including number spellings like 5H1T.
