@@ -378,7 +378,9 @@
   }
   .fs-btn{ display:none; font-family:var(--font); font-size:calc(var(--u)*6); padding:calc(var(--u)*3) calc(var(--u)*6);
     background:rgba(13,11,8,.75); color:var(--hazard); border:calc(var(--u)*1) solid var(--hazard); }
-  body.touch-mode .fs-btn{ display:inline-block; }
+  body.touch-mode .fs-btn, body.framed .fs-btn{ display:inline-block; }
+  body.framed.ios .fs-btn{ display:inline-block; }
+  body.framed .fs-hint{ display:none !important; }
   .fs-hint{ display:none; font-size:calc(var(--u)*5); color:var(--paper); background:rgba(13,11,8,.75); padding:calc(var(--u)*2) calc(var(--u)*4); }
   body.touch-mode.ios .fs-hint{ display:block; }
   body.touch-mode.ios .fs-btn{ display:none; }
@@ -1177,8 +1179,15 @@
     if(navigator.vibrate) navigator.vibrate(8);
   });
   ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>actionBtn.addEventListener(ev, e=>{ touchHeld.action=false; actionBtn.classList.remove('on'); }));
+  // Embedded on a website (e.g. Wix "Embed a Site"), the host frame usually blocks fullscreen:
+  // there, FULL SCREEN opens the game in its own tab instead, where fullscreen works.
+  const IN_FRAME=(()=>{ try{ return window.self!==window.top; }catch(e){ return true; } })();
+  const FRAME_BLOCKS_FS=IN_FRAME && !document.fullscreenEnabled;
+  if(FRAME_BLOCKS_FS) document.body.classList.add('framed');
+  function openOwnTab(){ window.open(location.href, '_blank', 'noopener'); }
   function enterFullscreen(){
     const el=document.documentElement;
+    if(FRAME_BLOCKS_FS){ openOwnTab(); return; }
     if(document.fullscreenElement || !el.requestFullscreen) return;
     el.requestFullscreen({navigationUI:'hide'}).catch(()=>{});
   }
@@ -2464,7 +2473,7 @@
   }
   $('testToggleBtn').addEventListener('click', e=>{ e.stopPropagation(); openPin('unlock'); });
   document.querySelectorAll('.title-opt').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); if(state!=='TITLE') return; Snd.unlock(); titleSel=b.dataset.title; renderTitleSel(); titleChoose(titleSel); }));
-  $('titleScreen').addEventListener('click', ()=>{ if(state==='TITLE'){ Snd.unlock(); if(document.body.classList.contains('touch-mode')) enterFullscreen(); sfx.select(); openCharSelect(); } });
+  $('titleScreen').addEventListener('click', ()=>{ if(state==='TITLE'){ Snd.unlock(); if(document.body.classList.contains('touch-mode') && !FRAME_BLOCKS_FS) enterFullscreen(); sfx.select(); openCharSelect(); } });
   // Conference leads: RESET only after the current list has been exported, then confirm.
   let clearArmed=false, clearArmTimer=null;
   async function armClear(btn){
@@ -2491,6 +2500,7 @@
     settings.leadsExportedAt=rows.length; saveSettings();
   }
   function toggleFullscreen(){
+    if(FRAME_BLOCKS_FS){ openOwnTab(); return; }
     try{
       if(!document.fullscreenElement) document.documentElement.requestFullscreen();
       else document.exitFullscreen();
