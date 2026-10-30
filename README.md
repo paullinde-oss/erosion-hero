@@ -52,7 +52,7 @@ chrome --kiosk --autoplay-policy=no-user-gesture-required "file:///path/to/Erosi
 ```
 
 ## Leaderboard / Firebase
-Conference scores live in this browser's localStorage (`erosionHeroLeads_v1`). Public scores are kept in `erosionHeroScores_public_v1` and, once Firebase is configured, uploaded to the Firestore collection `scores` through the REST API (no SDK). To go online, paste `{apiKey:"...", projectId:"..."}` from the Firebase web config into `FIREBASE_CONFIG` and rebuild. The security rules allow anyone to read and add scores (name, crew, score, site, curtain %, date only), and nobody to edit or delete them from the game.
+Conference scores live in this browser's localStorage (`erosionHeroLeads_v1`). Public scores are kept in `erosionHeroScores_public_v1` and uploaded to the Firestore collection `scores` through the REST API (no SDK). Firebase project: `erosion-hero` (config in `FIREBASE_CONFIG`). Delete bad entries in the Firebase console under Firestore Database > scores. The security rules allow anyone to read and add scores (name, crew, score, site, curtain %, date only), and nobody to edit or delete them from the game.
 
 ## Scoring
 - +50 per erosion control blanket (each covers 2 tiles), +25 per protected inlet; -15 per life lost.

@@ -1256,9 +1256,9 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   // FIREBASE_CONFIG is filled in, saved on this device first so nothing is lost without internet.
   const BOARD_KEYS={show:'erosionHeroLeads_v1', public:'erosionHeroScores_public_v1'};
   const PUBLIC_CACHE_KEY='erosionHeroScores_onlineCache_v1';
-  // Paste the web config from Firebase (Project settings > Your apps) here, e.g.
-  // {apiKey:"...", projectId:"erosion-hero"}. Only apiKey and projectId are used.
-  const FIREBASE_CONFIG=window.EROSION_FIREBASE||null;
+  // Web config from Firebase (Project settings > Your apps); only apiKey and projectId are used.
+  // Values from the Firebase web config are public by design; the Firestore security rules protect the data.
+  const FIREBASE_CONFIG=window.EROSION_FIREBASE||{apiKey:'AIzaSyDKNXmuqERzeG2LpB1afQxvJgKnMpIUnjg', projectId:'erosion-hero'};
   const readJson=(k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)||'null')??d; }catch(e){ return d; } };
   const writeJson=(k,v)=>{ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
   const ConferenceStore={
