@@ -110,6 +110,14 @@ def main():
         if not c and start is not None:
             if x - start > 3: runs.append((start, x))
             start = None
+    if a.frames > 1 and len(runs) < a.frames:
+        # some frames touch: cut at the emptiest column near each evenly spaced frame boundary
+        x0, x1 = runs[0][0], runs[-1][1]; step = (x1 - x0) / a.frames
+        fg = [sum(1 for y in range(img.height) if alpha.getpixel((x, y))) for x in range(w)]
+        cuts = [x0] + [min(range(int(x0 + k*step - step*0.2), int(x0 + k*step + step*0.2)), key=lambda x: fg[x])
+                       for k in range(1, a.frames)] + [x1]
+        runs = [(cuts[k], cuts[k+1]) for k in range(a.frames)]
+        runs = [(s0 + next((i for i in range(e0 - s0) if fg[s0+i]), 0), e0) for s0, e0 in runs]
     print("found", len(runs), "frames:", runs)
     out = pathlib.Path(a.out); out.mkdir(parents=True, exist_ok=True)
     frames = [img.crop((s, 0, e, img.height)) for s, e in runs]
