@@ -60,9 +60,10 @@ for cid, name, line in CREW:
     out.append({
         "id": cid, "name": name, "line": line,
         "portrait": uri(portrait), "face": uri(face),
-        # "A Job Well Done" ending: this hero at the bar with the Inspector (art/canva/ending_<id>_raw.png)
-        "ending": uri(Image.open(root / "art" / "canva" / f"ending_{cid}_raw.png").convert("RGB"))
-                  if (root / "art" / "canva" / f"ending_{cid}_raw.png").exists() else None,
+        # "A Job Well Done" ending: this hero at the bar with the Inspector (art/canva/ending_<id>_raw.png).
+        # Franchise characters (and anyone without a scene) get ending_generic: the Inspector's toast.
+        "ending": uri(Image.open(next(f for f in (root / "art" / "canva" / f"ending_{cid}_raw.png",
+                                                 root / "art" / "canva" / "ending_generic_raw.png") if f.exists())).convert("RGB")),
         "down": {"idle": uri(w[0]), "walk": [uri(w[0]), uri(w[1]), uri(w[0]), uri(w[2])]},
         "up": {"idle": uri(w[3]), "walk": [uri(w[3]), uri(w[4]), uri(w[3]), uri(ImageOps.mirror(w[4]))]},
         "side": {"idle": uri(w[5]), "walk": [uri(w[6]), uri(w[5]), uri(w[7]), uri(w[5])]},
