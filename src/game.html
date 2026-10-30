@@ -633,7 +633,7 @@
   const PTS_COVER=25, PTS_BLANKET=50, PTS_PENALTY=15, PTS_SITE_CLEAR=100, PTS_NO_HIT=100, PTS_PER_LIFE=50;
   const PTS_PER_ACCURACY=10;          // curtain: 1% match to plan = 10 pts (max 1000)
   const CURTAIN_SPEED=50, CURTAIN_TOLERANCE=22, CURTAIN_TIME_LIMIT=45;
-  const IDLE_MENU_SEC=30, IDLE_PLAY_SEC=60;
+  const IDLE_MENU_SEC=30, IDLE_PLAY_SEC=60, IDLE_RUN_SCREEN_SEC=90;   // run screens: briefings, tallies, ending, name entry
   const FONT='"Press Start 2P", monospace';
 
   const canvas=document.getElementById('game');
@@ -3468,7 +3468,9 @@
   function updateIdle(now){
     if(!settings.idleReset || state==='TITLE' || state==='ADMIN' || state==='PIN' || (state==='BOARD' && boardFromTitle)) return;   // a board opened from the title stays up for display
     const idle=(now-lastInputAt)/1000;
-    const limit=(state==='PLAYING'||state==='COUNTDOWN'||state==='PAUSED'||state==='ENTRY') ? IDLE_PLAY_SEC : IDLE_MENU_SEC;
+    // screens in the middle of a run get time to read (site briefings are long); menus reset quickly
+    const limit=['BRIEFING','CLEAR','RESULTS','ENDING','ENTRY'].includes(state) ? IDLE_RUN_SCREEN_SEC
+      : (state==='PLAYING'||state==='COUNTDOWN'||state==='PAUSED') ? IDLE_PLAY_SEC : IDLE_MENU_SEC;
     if(state==='STAGE_END') return;
     if(idle>limit) goTitle();
   }

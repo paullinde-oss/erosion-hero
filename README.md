@@ -24,7 +24,7 @@ PRESS START plays. HOW TO PLAY and LEADERBOARD are below it (joystick down/left/
 - Open it with the small hard-hat icon (bottom right of the title) or the backtick key `` ` ``. It asks for the operator PIN: **123** by default. Enter it with UP/DOWN + A on a controller, by typing, or on the on-screen keypad. Change it in the menu under OPERATOR PIN.
 - Inside: jump to any site, event mode, controller setup, secret heroes, music/SFX/scanlines/idle reset, fullscreen, PIN, and conference leads.
 - **F**: fullscreen. **M**: music on/off.
-- **Idle reset:** menus return to the title after 30s with no input; a game in progress returns after 60s.
+- **Idle reset:** title-screen menus return to the title after 30s with no input; a game in progress after 60s; screens in the middle of a run (site briefings, tallies, ending, name entry) after 90s.
 
 ## Event modes (operator menu > EVENT MODE)
 - **PUBLIC** (default): names only. When `FIREBASE_CONFIG` is set in `src/game.html`, scores go to the online leaderboard. Each score is saved on the device first and uploaded when there's internet, so nothing is lost offline. The title has no badge.
