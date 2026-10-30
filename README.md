@@ -55,8 +55,8 @@ chrome --kiosk --autoplay-policy=no-user-gesture-required "file:///path/to/Erosi
 Conference scores live in this browser's localStorage (`erosionHeroLeads_v1`). Public scores are kept in `erosionHeroScores_public_v1` and uploaded to the Firestore collection `scores` through the REST API (no SDK). Firebase project: `erosion-hero` (config in `FIREBASE_CONFIG`). Delete bad entries in the Firebase console under Firestore Database > scores. The security rules allow anyone to read and add scores (name, crew, score, site, curtain %, date only), and nobody to edit or delete them from the game.
 
 ## Scoring
-- +50 per erosion control blanket (each covers 2 tiles), +25 per protected inlet; -15 per life lost.
+- +50 per erosion control blanket (each covers 2 tiles), +25 per protected inlet; -15 per life lost. On Main Street a drain that gets past you costs half a heart (-8), since traffic can block it.
 - Blanket and basin sites: +100 for clearing the site, +100 more if you finished it without getting hit.
 - Curtain sites (one pass each, 45s limit): your match to the plan, 0-100%, x 10 points (max 1,000), plus +100 for securing the site (Lakeshore). Being 5px off the line on average scores about 85%; only a near-perfect trace gets 100%.
-- Finishing all seven: +50 per remaining life.
+- Finishing all seven: +50 per remaining life (half hearts count as 25).
 - Leaderboard ties are broken by the average curtain match, then by whoever scored first.

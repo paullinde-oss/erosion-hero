@@ -856,8 +856,8 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       duration:32,
       scrollSpeed:26,
       basinSpawnInterval:3.6, basinMax:2,
-      carSpeed:38, carScale:1.15,
-      obstacleIntervalMin:2.8, obstacleIntervalMax:4.2,
+      carSpeed:47, carScale:1.15,
+      obstacleIntervalMin:2.3, obstacleIntervalMax:3.6,
       bmpTruckAt:[0.45],
       playerStart:{x:150,y:150}
     },
@@ -1788,16 +1788,20 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     hideAll(); state=(preAdmin&&preAdmin.state)||'PLAYING';
   }
 
-  function loseLife(msg, x, y){
-    lives-=1; siteStats.hits++;
-    score=Math.max(0,score-PTS_PENALTY);
+  // amount: 1 for a hit, 0.5 for a drain that gets away on Main Street (traffic can block it)
+  function loseLife(msg, x, y, amount){
+    amount=amount||1;
+    const pen=Math.round(PTS_PENALTY*amount);
+    lives-=amount; siteStats.hits++;
+    score=Math.max(0,score-pen);
     invulnTimer=INVULN_TIME; lostHeartT=0.8;
     shake(4,0.35); hitFlash=1;
     showBanner(msg,'bad',1.1);
-    if(x!=null) popup(x,y,'-'+PTS_PENALTY,'#ff5a3a');
+    if(x!=null) popup(x,y,'-'+pen,'#ff5a3a');
     sfx.hurt();
     if(navigator.vibrate && document.body.classList.contains('touch-mode')) navigator.vibrate(60);
-    if(lives<=0){
+    if(lives<=0.001){
+      lives=0;
       state='STAGE_END'; stageEndT=1.8; stageEndNext='GAMEOVER';
       showBanner('SITE FAILED','bad',1.8);
       Snd.play('gameover');
@@ -2103,7 +2107,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
         sfx.cover();
       }
       if(b.x+b.w<0){
-        if(b.state==='active'){ loseLife('MISSED A DRAIN!', 14, b.y); if(state!=='PLAYING') return; }
+        if(b.state==='active'){ loseLife('MISSED A DRAIN!\n-1/2 HEART', 14, b.y, 0.5); if(state!=='PLAYING') return; }
         basins.splice(i,1);
       }
     }
@@ -3414,10 +3418,13 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     // score
     text(String(Math.round(displayScore)).padStart(6,'0'), 198, 4, {align:'right', outline:false, color:'#fff3c4'});
     // hearts
+    // hearts: full, half (left half lit) or empty; the one just lost flashes white
+    const flash=lostHeartT>0 && Math.floor(lostHeartT*10)%2;
     for(let i=0;i<MAX_LIVES;i++){
-      let pal=i<lives?HEART_PAL:HEART_EMPTY_PAL;
-      if(i===lives && lostHeartT>0 && Math.floor(lostHeartT*10)%2) pal=HEART_WHITE_PAL;
-      drawPixelSprite(HEART, pal, 206+i*12, 5, 1);
+      const x=206+i*12, fill=clamp(lives-i,0,1);
+      drawPixelSprite(HEART, fill>=1?HEART_PAL:HEART_EMPTY_PAL, x, 5, 1);
+      if(fill>0 && fill<1){ ctx.save(); ctx.beginPath(); ctx.rect(x,5,4,6); ctx.clip(); drawPixelSprite(HEART, HEART_PAL, x, 5, 1); ctx.restore(); }
+      if(flash && i===Math.floor(lives+0.001) && fill<1){ ctx.save(); ctx.beginPath(); ctx.rect(x+(fill>0?4:0),5,fill>0?3:7,6); ctx.clip(); drawPixelSprite(HEART, HEART_WHITE_PAL, x, 5, 1); ctx.restore(); }
     }
   }
 
