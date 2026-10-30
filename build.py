@@ -24,4 +24,5 @@ out = (src.replace("/*@@ASSETS@@*/", assets)
           .replace("@@FONT_WOFF2@@", font))
 assert "@@" not in out, "unreplaced placeholder"
 (root / "Erosion_Hero.html").write_text(out)
+(root / "index.html").write_text(out)          # same game, under the name web hosts serve by default
 print(f"wrote Erosion_Hero.html ({len(out) / 1024:.0f} KB)")
