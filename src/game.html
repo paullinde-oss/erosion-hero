@@ -195,6 +195,15 @@
   .title-opt[data-title="play"]{ background:none; border:none; padding:0; }
   .title-opt.sel:not([data-title="play"]){ background:var(--hazard); color:var(--ink); border-color:var(--hazard); }
   .title-opt[data-title="play"]:not(.sel) .press-start{ opacity:.55; animation:none; }
+  #endScreen{ background:#0d0b08; justify-content:center; padding:0; }
+  .end-art{ position:absolute; inset:0; }
+  .end-art img{ width:100%; height:100%; object-fit:cover; image-rendering:pixelated; animation:endIn 1.2s ease-out both; }
+  @keyframes endIn{ from{ opacity:0; transform:scale(1.08); } }
+  .end-title{ position:absolute; top:calc(var(--u)*14); left:0; right:0; text-align:center; font-size:calc(var(--u)*17); color:var(--hazard);
+    text-shadow:calc(var(--u)*1) calc(var(--u)*1) 0 var(--ink), calc(var(--u)*2) calc(var(--u)*2) 0 #8a2a08, calc(var(--u)*3) calc(var(--u)*3) 0 var(--ink);
+    animation:logoIn .8s .5s cubic-bezier(.2,1.6,.4,1) both; }
+  .end-sub{ position:absolute; top:calc(var(--u)*38); left:0; right:0; text-align:center; font-size:calc(var(--u)*7); color:#fff3c4; text-shadow:calc(var(--u)*1) calc(var(--u)*1) 0 var(--ink); animation:endIn .6s 1.1s both; }
+  .end-press{ position:absolute; bottom:calc(var(--u)*8); left:0; right:0; text-align:center; font-size:calc(var(--u)*8); color:#fff; text-shadow:calc(var(--u)*1) calc(var(--u)*1) 0 var(--ink); }
   .board-mode{ font-size:calc(var(--u)*6); color:var(--muted); margin-top:calc(var(--u)*-3); }
   .how-panel .howto div{ font-size:calc(var(--u)*6); }
   .site-row{ display:flex; flex-wrap:wrap; justify-content:flex-end; gap:calc(var(--u)*2); max-width:calc(var(--u)*130); }
@@ -514,6 +523,14 @@
     </div>
   </div>
 
+  <!-- A JOB WELL DONE (after the final site, before the score tally) -->
+  <div class="overlay hidden" id="endScreen">
+    <div class="end-art" id="endArt"></div>
+    <div class="end-title">A JOB WELL DONE</div>
+    <div class="end-sub" id="endSub"></div>
+    <div class="end-press blink">PRESS A</div>
+  </div>
+
   <!-- LEADERBOARD -->
   <div class="overlay dim hidden" id="boardScreen">
     <div class="panel hazard">
@@ -650,7 +667,7 @@
   // plus a blanket-laying pose per direction (w/h in logical px).
   // Playable crew: each has walk frames, laying poses and a character-select portrait.
   const CREW=CREW_SRC.map(c=>{
-    const h={id:c.id, name:c.name, line:c.line, portrait:c.portrait, face:c.face, lay:{}};
+    const h={id:c.id, name:c.name, line:c.line, portrait:c.portrait, face:c.face, ending:c.ending, lay:{}};
     ['down','up','side'].forEach(k=>{ h[k]={idle:mkImg(c[k].idle), walk:c[k].walk.map(mkImg)}; });
     Object.keys(c.lay).forEach(k=>{ const d=c.lay[k]; h.lay[k]={img:mkImg(d.src), w:d.w, h:d.h}; });
     return h;
@@ -1203,7 +1220,7 @@
   // =====================================================================
   //  MENUS: every overlay button is reachable by joystick/keys as well as mouse/touch
   // =====================================================================
-  const OVERLAYS=['howScreen','pinScreen','titleScreen','charScreen','padScreen','briefScreen','pauseScreen','clearScreen','resultsScreen','entryScreen','boardScreen','adminScreen'];
+  const OVERLAYS=['endScreen','howScreen','pinScreen','titleScreen','charScreen','padScreen','briefScreen','pauseScreen','clearScreen','resultsScreen','entryScreen','boardScreen','adminScreen'];
   let currentOverlay=null, menuFocus=0;
   function show(id){
     OVERLAYS.forEach(x=>$(x).classList.toggle('hidden', x!==id));
@@ -1811,6 +1828,15 @@
     show('clearScreen');
     tally={el:$('clearRows'), i:0, t:0.35, done:false, btn:$('nextBtn')};
   }
+  // Ending splash: the hero at the bar with the Inspector. Heroes without their own scene use Daryl's.
+  let endT=0;
+  function showEnding(){
+    const art=HERO.ending||crewById('daryl').ending;
+    $('endArt').innerHTML=art?`<img src="${art}" alt="">`:'';
+    $('endSub').textContent=`${HERO.name} & THE INSPECTOR`;
+    state='ENDING'; endT=0; show('endScreen');
+    Snd.play('win');
+  }
   async function showResults(won){
     const rows=[];
     if(won){
@@ -2207,6 +2233,11 @@
         return;
       case 'PIN':
         updatePin(); break;
+      case 'ENDING':
+        endT+=dt;
+        if(endT>1.2 && (pressed.action||pressed.start||pressed.back)) { sfx.select(); showResults(true); }
+        else if(endT>12) showResults(true);
+        break;
       case 'BRIEFING': case 'PAUSED': case 'BOARD': case 'ADMIN': case 'HOWTO':
         menuNav(); break;
       case 'CLEAR': case 'RESULTS':
@@ -2241,7 +2272,7 @@
         if(stageEndT<=0){
           Snd.setTempo(1);
           if(stageEndNext==='CLEAR') showLevelClear();
-          else if(stageEndNext==='WIN') showResults(true);
+          else if(stageEndNext==='WIN') showEnding();
           else showResults(false);
         }
         break;
@@ -2473,6 +2504,7 @@
   }
   $('testToggleBtn').addEventListener('click', e=>{ e.stopPropagation(); openPin('unlock'); });
   document.querySelectorAll('.title-opt').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); if(state!=='TITLE') return; Snd.unlock(); titleSel=b.dataset.title; renderTitleSel(); titleChoose(titleSel); }));
+  $('endScreen').addEventListener('click', ()=>{ if(state==='ENDING' && endT>1.2) showResults(true); });
   $('titleScreen').addEventListener('click', ()=>{ if(state==='TITLE'){ Snd.unlock(); if(document.body.classList.contains('touch-mode') && !FRAME_BLOCKS_FS) enterFullscreen(); sfx.select(); openCharSelect(); } });
   // Conference leads: RESET only after the current list has been exported, then confirm.
   let clearArmed=false, clearArmTimer=null;
