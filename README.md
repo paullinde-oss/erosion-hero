@@ -22,7 +22,7 @@ PRESS START plays. HOW TO PLAY and LEADERBOARD are below it (joystick down/left/
 
 ## Operator menu (PIN protected)
 - Open it with the small hard-hat icon (bottom right of the title) or the backtick key `` ` ``. It asks for the operator PIN: **123** by default. Enter it with UP/DOWN + A on a controller, by typing, or on the on-screen keypad. Change it in the menu under OPERATOR PIN.
-- Inside: jump to any site, event mode, controller setup, secret heroes, music/SFX/scanlines/idle reset, fullscreen, PIN, and conference leads.
+- Inside: jump to any site, event mode, controller setup, secret heroes, music/SFX/idle reset, fullscreen, PIN, and conference leads.
 - **F**: fullscreen. **M**: music on/off.
 - **Idle reset:** title-screen menus return to the title after 30s with no input; a game in progress after 60s; screens in the middle of a run (site briefings, tallies, ending, name entry) after 90s.
 
