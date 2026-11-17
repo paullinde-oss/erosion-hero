@@ -15,13 +15,17 @@ tiles = (root / "src" / "tiles_v2.js").read_text()
 sprites = (root / "src" / "sprites_v2.js").read_text()
 title_bg = (root / "src" / "title_bg.txt").read_text().strip()
 font = base64.b64encode((root / "src" / "pressstart2p-latin.woff2").read_bytes()).decode()
+b64 = lambda name: base64.b64encode((root / "src" / name).read_bytes()).decode()   # favicon: tools/build_favicon.py
 
 out = (src.replace("/*@@ASSETS@@*/", assets)
           .replace("/*@@HERO@@*/", hero)
           .replace("/*@@TILES@@*/", tiles)
           .replace("/*@@SPRITES@@*/", sprites)
           .replace("@@TITLE_BG@@", title_bg)
-          .replace("@@FONT_WOFF2@@", font))
+          .replace("@@FONT_WOFF2@@", font)
+          .replace("@@FAVICON_SVG@@", b64("favicon.svg"))
+          .replace("@@FAVICON_PNG@@", b64("favicon-32.png"))
+          .replace("@@APPLE_ICON@@", b64("apple-touch-icon.png")))
 assert "@@" not in out, "unreplaced placeholder"
 (root / "Erosion_Hero.html").write_text(out)
 (root / "index.html").write_text(out)          # same game, under the name web hosts serve by default
