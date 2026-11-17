@@ -83,6 +83,12 @@
     padding:calc(var(--u)*10);
   }
   .overlay.hidden{ display:none; }
+  #boardScreen{ justify-content:safe center; overflow-y:auto; padding-top:calc(var(--u)*6); padding-bottom:calc(var(--u)*6); }
+  #boardScreen .panel{ gap:calc(var(--u)*4); padding:calc(var(--u)*7) calc(var(--u)*8); }
+  #boardScreen .lb{ gap:calc(var(--u)*1); }
+  #boardScreen .lb li{ padding-top:calc(var(--u)*1.5); padding-bottom:calc(var(--u)*1.5); }
+  #boardScreen .lb li .face{ width:calc(var(--u)*9); height:calc(var(--u)*9); margin-right:calc(var(--u)*2); }
+  #boardScreen .lb li .face2{ margin-left:calc(var(--u)*-5); }
   .overlay.dim{ background:rgba(9,8,6,.72); }
   .panel{
     background:rgba(28,23,18,.96);
@@ -276,7 +282,7 @@
   /* ---------- Leaderboard ---------- */
   .lb{ list-style:none; margin:0; padding:0; width:100%; display:flex; flex-direction:column; gap:calc(var(--u)*2); }
   .lb li{
-    display:grid; grid-template-columns:calc(var(--u)*16) 1fr calc(var(--u)*38);
+    display:grid; grid-template-columns:calc(var(--u)*14) 1fr calc(var(--u)*32);
     align-items:center; gap:calc(var(--u)*4);
     padding:calc(var(--u)*3) calc(var(--u)*5);
     background:rgba(13,11,8,.7); border:calc(var(--u)*0.5) solid var(--panel-line);
@@ -285,8 +291,8 @@
   .lb li .rk{ color:var(--muted); }
   .lb li:nth-child(1) .rk{ color:#ffd84a; } .lb li:nth-child(2) .rk{ color:#cfd6dc; } .lb li:nth-child(3) .rk{ color:#d08a4a; }
   .lb li .who{ overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-  .lb li .co{ color:var(--muted); }
-  .lb li .who.wrap{ white-space:normal; line-height:1.7; font-size:calc(var(--u)*5); }
+  .lb li .co{ color:var(--muted); font-size:calc(var(--u)*4.5); }
+  .lb li .who.wrap{ font-size:calc(var(--u)*5); }   /* name - company on one line, smaller */
   .lb li .sc{ text-align:right; color:var(--hazard); }
   .lb li.me{ border-color:var(--hazard); background:rgba(232,185,35,.16); animation:meGlow .8s steps(2) infinite; }
   @keyframes meGlow{ 50%{ background:rgba(232,185,35,.04); } }
@@ -467,7 +473,6 @@
     <div class="title-menu">
       <button class="title-opt sel" data-title="play"><span class="press-start blink">PRESS START</span></button>
       <div class="title-row">
-        <button class="title-opt" data-title="howto">HOW TO PLAY</button>
         <button class="title-opt" data-title="board">LEADERBOARD</button>
       </div>
     </div>
@@ -589,9 +594,9 @@
     <div class="panel hazard diff-panel">
       <h2>CHOOSE DIFFICULTY</h2>
       <div class="menu">
-        <button class="btn diff-btn" data-act="diff" data-d="easy"><b>EASY</b><span>Kids &amp; first-timers &middot; 5 hearts</span></button>
-        <button class="btn diff-btn" data-act="diff" data-d="medium"><b>MEDIUM</b><span>The classic run &middot; score x1.5</span></button>
-        <button class="btn diff-btn" data-act="diff" data-d="hard"><b>HARD</b><span>For pros &middot; score x2</span></button>
+        <button class="btn diff-btn" data-act="diff" data-d="easy"><b>EASY</b></button>
+        <button class="btn diff-btn" data-act="diff" data-d="medium"><b>MEDIUM</b></button>
+        <button class="btn diff-btn" data-act="diff" data-d="hard"><b>HARD</b></button>
       </div>
       <div class="cs-help"><b>A</b> SELECT &middot; <b>B</b> BACK</div>
     </div>
@@ -2631,10 +2636,8 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
         updateAttract(dt);
         if(pressed.start){ titleChoose('play'); return; }
         if(rep.up||rep.left||rep.down||rep.right){
-          const opts=['play','howto','board'];
-          let i=opts.indexOf(titleSel);
-          if(rep.down) i=i===0?1:i; else if(rep.up) i=0;
-          else if(rep.right) i=i===0?1:Math.min(2,i+1); else if(rep.left) i=i===2?1:i===1?0:0;
+          const opts=['play','board'];   // How to Play now shows at the start of every game
+          let i=(rep.down||rep.right)?1:0;
           if(opts[i]!==titleSel){ titleSel=opts[i]; renderTitleSel(); sfx.move(); }
         }
         if(pressed.action) titleChoose(titleSel);
