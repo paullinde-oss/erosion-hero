@@ -601,8 +601,8 @@
     <div class="panel hazard diff-panel">
       <h2>HOW MANY PLAYERS?</h2>
       <div class="menu">
-        <button class="btn diff-btn" data-act="players" data-n="1"><b>1 PLAYER</b><span>Solo run &middot; 4 hearts</span></button>
-        <button class="btn diff-btn" data-act="players" data-n="2"><b>2 PLAYERS</b><span>Team up &middot; 2 hearts each &middot; tougher sites</span></button>
+        <button class="btn diff-btn" data-act="players" data-n="1"><b>1 PLAYER</b><span>Solo run</span></button>
+        <button class="btn diff-btn" data-act="players" data-n="2"><b>2 PLAYERS</b><span>Team up &middot; share 4 hearts</span></button>
       </div>
       <div class="cs-help"><b>A</b> SELECT &middot; <b>B</b> BACK</div>
     </div>
@@ -995,10 +995,10 @@
         else if(l.type==='road'){ l.obstacleIntervalMin*=0.85; l.obstacleIntervalMax*=0.85; l.obstacleSpeedMult*=1.08; }
         else if(l.type==='curtain'){ if(l.current) l.current*=1.3; }
       }
-      if(coop){   // two heroes cover twice the ground, so 2-player sites are busier to keep the board fair
-        if(l.type==='yard'){ l.spawnInterval*=0.92; l.maxActive+=1; l.activeLifetime*=0.72; l.inspectorSpeed*=1.15; }
-        else if(l.type==='road' && l.dir==='up'){ l.basinSpawnInterval*=0.85; l.basinMax+=1; l.carSpeed*=1.1; l.obstacleIntervalMin*=0.75; l.obstacleIntervalMax*=0.75; }
-        else if(l.type==='road'){ l.basinSpawnInterval*=0.85; l.basinMax+=1; l.obstacleSpeedMult*=1.1; l.obstacleIntervalMin*=0.75; l.obstacleIntervalMax*=0.75; }
+      if(coop){   // 2 players: same number of patches/drains to score as solo (same max points), but more danger
+        if(l.type==='yard'){ l.activeLifetime*=0.7; l.inspectorSpeed*=1.2; }
+        else if(l.type==='road' && l.dir==='up'){ l.carSpeed*=1.12; l.obstacleIntervalMin*=0.7; l.obstacleIntervalMax*=0.7; }
+        else if(l.type==='road'){ l.obstacleSpeedMult*=1.12; l.obstacleIntervalMin*=0.7; l.obstacleIntervalMax*=0.7; }
       }
       LEVELS.push(l);
     });
@@ -1542,11 +1542,11 @@
   // ---------- 2 PLAYERS (Conference only) ----------
   // P holds both players. The game code is written for one hero (player, HERO, invulnTimer, IN), so withP()
   // swaps a player's state into those globals, runs the code, and saves it back. Solo play never uses it.
-  const COOP_HEARTS=2, TAG_COL=['#ff3a1a','#3a8dff'];
-  let P=[], curP=null, csPhase=1, teamTurn=0;
+  const TAG_COL=['#ff3a1a','#3a8dff'];
+  let P=[], curP=null, csPhase=1;
   function setupPlayers(n){
     coop=n===2; csPhase=1;
-    P=coop?[0,1].map(i=>({i, o:i===0?player:Object.assign({},player), hero:HERO, inv:0, lives:COOP_HEARTS, out:false, seen:0, alert:false, src:null, held:{}})):[];
+    P=coop?[0,1].map(i=>({i, o:i===0?player:Object.assign({},player), hero:HERO, inv:0, out:false, seen:0, alert:false, src:null, held:{}})):[];
   }
   function withP(p, fn){
     const sv={player, HERO, inv:invulnTimer, IN};
@@ -1862,7 +1862,7 @@
     $('ctrlTips').innerHTML=`<div><span class="keycap">MOVE</span><span>${move}</span></div>
       <div><span class="keycap">HOLD ${act}</span><span>on <b>eroding soil</b> to lay a blanket, or on an <b>open drain</b> to protect it</span></div>
       <div><span class="keycap">AVOID</span><span>The <b>Inspector's</b> sightline, water &amp; traffic</span></div>`+
-      (coop?`<div><span class="keycap">2 PLAYERS</span><span><b style="color:#ff6a4a">1P ${escapeHtml(P[0].hero.name)}</b> &amp; <b style="color:#6aa8ff">2P ${escapeHtml(P[1].hero.name)}</b>: each on your own controller. 2 hearts each &mdash; if one is out, the other plays on!</span></div>`:'');
+      (coop?`<div><span class="keycap">2 PLAYERS</span><span><b style="color:#ff6a4a">1P ${escapeHtml(P[0].hero.name)}</b> &amp; <b style="color:#6aa8ff">2P ${escapeHtml(P[1].hero.name)}</b>: each on your own controller. You share 4 hearts &mdash; anyone's mistake costs the team!</span></div>`:'');
     $('ctrlGo').textContent=conf?'PRESS A TO START':touch?'TAP TO START':'PRESS SPACE TO START';
     demoCtx=$('ctrlDemo').getContext('2d'); demoCtx.imageSmoothingEnabled=false;
     state='CONTROLS'; ctrlT=0; show('ctrlScreen');
@@ -2075,7 +2075,6 @@
   function startGame(siteIdx){
     applyDifficulty();
     score=0; displayScore=0; lives=maxLives(); curtainAccuracy=null; curtainAccs=[];
-    if(coop){ P.forEach(p=>{ p.lives=COOP_HEARTS; p.out=false; }); lives=COOP_HEARTS*2; teamTurn=0; }
     levelIdx=siteIdx||0;
     beginSite();
   }
@@ -2115,16 +2114,8 @@
   function loseLife(msg, x, y, amount){
     amount=amount||1;
     const pen=Math.round(PTS_PENALTY*amount);
-    let tgt=null;
-    if(coop){
-      // a hero's own hit costs that hero; a team miss (washout, drain) costs whoever has the most hearts left
-      tgt=curP || P.filter(p=>!p.out).sort((a,b)=>(b.lives-a.lives)||(a.i===teamTurn?-1:1))[0];
-      if(!tgt) return;
-      if(!curP) teamTurn=1-tgt.i;
-      tgt.lives-=amount;
-      if(curP) invulnTimer=INVULN_TIME; else tgt.inv=INVULN_TIME;
-      lives=P.reduce((a,p)=>a+Math.max(0,p.lives),0);
-    } else { lives-=amount; invulnTimer=INVULN_TIME; }
+    lives-=amount;                     // 2 players share the one pool of hearts
+    if(!coop || curP) invulnTimer=INVULN_TIME;   // the hero who was hit blinks; team misses (washout, drain) don't
     siteStats.hits++;
     score=Math.max(0,score-pen);
     lostHeartT=0.8;
@@ -2133,12 +2124,6 @@
     if(x!=null) popup(x,y,'-'+pen,'#ff5a3a');
     sfx.hurt();
     if(navigator.vibrate && document.body.classList.contains('touch-mode')) navigator.vibrate(60);
-    if(coop && tgt.lives<=0.001){
-      tgt.lives=0; tgt.out=true;
-      Object.assign(tgt.o, {laying:false, layTarget:null, layProgress:0});
-      burst(tgt.o.x+5, tgt.o.y+5, 18, ['#fff', TAG_COL[tgt.i], '#e8b923'], 60, 0.6);
-      if(P.some(p=>!p.out)){ showBanner(`${tgt.i+1}P ${tgt.hero.name}\nIS OUT!`,'bad',1.6); return; }
-    }
     if(lives<=0.001){
       lives=0;
       state='STAGE_END'; stageEndT=1.8; stageEndNext='GAMEOVER';
@@ -2800,22 +2785,20 @@
       lastSavedId=entry.id;
       showBoard(entry.id);
     };
-    if(coop){                                  // 2 players: each enters a name and company
+    if(coop){                                  // 2 players: both names, then one shared company
       const t=s=>(s||'').trim();
-      openTextEntry('1P: ENTER NAME','STEP 1 OF 4',10,n1=>
-        openTextEntry('1P: ENTER COMPANY','STEP 2 OF 4',12,c1=>
-          openTextEntry('2P: ENTER NAME','STEP 3 OF 4',10,n2=>
-            openTextEntry('2P: ENTER COMPANY','STEP 4 OF 4',12,async c2=>{
-              const N1=t(n1)||'ANONYMOUS', N2=t(n2)||'ANONYMOUS', C1=t(c1), C2=t(c2);
-              const company=!C2||C1===C2?C1:!C1?C2:C1+' / '+C2;
+      openTextEntry('1P: ENTER NAME','STEP 1 OF 3',10,n1=>
+        openTextEntry('2P: ENTER NAME','STEP 2 OF 3',10,n2=>
+          openTextEntry('ENTER COMPANY','STEP 3 OF 3',12,async c=>{
+              const N1=t(n1)||'ANONYMOUS', N2=t(n2)||'ANONYMOUS', company=t(c);
               const entry={name:N1+' & '+N2, company, crew:P[0].hero.id, crew2:P[1].hero.id,
-                players:[{name:N1,company:C1,crew:P[0].hero.id},{name:N2,company:C2,crew:P[1].hero.id}],
+                players:[{name:N1,company,crew:P[0].hero.id},{name:N2,company,crew:P[1].hero.id}],
                 score, siteReached:reached, curtainAccuracy:curtainAvg(), date:new Date().toISOString()};
               entry.id=entry.date+'|'+entry.name;
               await Board.store.add(entry);
               lastSavedId=entry.id;
               showBoard(entry.id);
-            }))));
+            })));
       return;
     }
     if(settings.mode==='public'){              // public board: names only
@@ -3800,7 +3783,7 @@
     // progress meter: storm ETA / shift progress / distance to shore
     const icon=ICONS[lvl.type];
     drawPixelSprite(icon.rows, icon.pal, 70, lvl.type==='road'?5:4, 1);
-    const nH=coop?MAX_LIVES+1:maxLives(), bx=82, bw=58-(nH-MAX_LIVES)*12, by=5, bh=6;
+    const nH=maxLives(), bx=82, bw=58-(nH-MAX_LIVES)*12, by=5, bh=6;
     ctx.fillStyle='#3a2f22'; ctx.fillRect(bx-1,by-1,bw+2,bh+2);
     ctx.fillStyle='#000'; ctx.fillRect(bx,by,bw,bh);
     const p=clamp(rainProgress,0,1);
@@ -3812,18 +3795,6 @@
     // hearts
     // hearts: full, half (left half lit) or empty; the one just lost flashes white
     const flash=lostHeartT>0 && Math.floor(lostHeartT*10)%2;
-    if(coop){   // 1P hearts | 2P hearts, each pair underlined in its player's color
-      P.forEach((p,k)=>{
-        const x0=254-4*12-6+k*30;
-        ctx.fillStyle=p.out?'#3a2f22':TAG_COL[k]; ctx.fillRect(x0-1,13,24,2);
-        for(let i=0;i<COOP_HEARTS;i++){
-          const x=x0+i*12, fill=clamp(p.lives-i,0,1);
-          drawPixelSprite(HEART, fill>=1?HEART_PAL:HEART_EMPTY_PAL, x, 4, 1);
-          if(fill>0 && fill<1){ ctx.save(); ctx.beginPath(); ctx.rect(x,4,4,6); ctx.clip(); drawPixelSprite(HEART, HEART_PAL, x, 4, 1); ctx.restore(); }
-        }
-      });
-      return;
-    }
     for(let i=0;i<nH;i++){
       const x=254-nH*12+i*12, fill=clamp(lives-i,0,1);
       drawPixelSprite(HEART, fill>=1?HEART_PAL:HEART_EMPTY_PAL, x, 5, 1);
@@ -3922,7 +3893,7 @@
     get units(){ return erosionTiles.filter(t=>t.state==='active').map(t=>({col:t.col,row:t.row,w:t.w,h:t.h,timer:t.timer})); },
     get grid(){ return grid; },
     get siteHits(){ return siteStats.hits; },
-    get crew(){ return HERO.id; }, get coop(){ return coop?P.map(p=>({hero:p.hero.id, src:p.src, lives:p.lives, out:p.out, x:p.o.x, y:p.o.y, inv:p.inv})):null; }, get csPhase(){ return csPhase; }, qaCoop(n){ setupPlayers(n); if(coop){ P[0].src='pad0'; P[1].src='pad1'; P[1].hero=CREW[1]; } }, get bikes(){ return obstacles.filter(o=>o.kind==="bike").map(o=>Math.round(o.x)); }, get mode(){ return settings.mode; },
+    get crew(){ return HERO.id; }, get coop(){ return coop?P.map(p=>({hero:p.hero.id, src:p.src, x:p.o.x, y:p.o.y, inv:p.inv})):null; }, get csPhase(){ return csPhase; }, qaCoop(n){ setupPlayers(n); if(coop){ P[0].src='pad0'; P[1].src='pad1'; P[1].hero=CREW[1]; } }, get bikes(){ return obstacles.filter(o=>o.kind==="bike").map(o=>Math.round(o.x)); }, get mode(){ return settings.mode; },
     isBadName(n){ return isBadName(n); },
     get banner(){ return banner&&banner.text; }, get cars(){ return obstacles.map(o=>({x:o.x,y:o.y,w:o.w,h:o.h,dir:o.dir})); }, get basins(){ return basins.map(b=>({x:b.x,y:b.y,side:b.side,state:b.state,fill:b.fill})); }, get hero(){ return {x:player.x, y:player.y, laying:player.laying, dir:player.layDir}; }
   };

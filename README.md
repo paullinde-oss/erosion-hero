@@ -37,10 +37,10 @@ Difficulty follows the mode: CONFERENCE plays the base tuning (built for one or 
 ## 2 players (Conference mode only)
 After PRESS START, the booth picks **1 PLAYER** or **2 PLAYERS**. In 2-player mode:
 - Player 1 picks a hero (red 1P cursor), then Player 2 picks a different one (blue 2P cursor). Each player keeps the controller they picked with. With only one controller, Player 2 gets the keyboard.
-- Each hero has **2 hearts**. A hit by the Inspector or traffic costs the hero who was hit. A washout or missed drain costs whoever has the most hearts left. A hero at 0 is out, and the other keeps playing alone. The game ends when both are out.
-- Curtain sites: 1P drives the Lakeshore boat and 2P drives the Riverbank boat. If one player is out, the other drives.
-- 2-player sites are tougher: patches wash out faster, one more patch or drain can be open at once, the Inspector walks faster, and traffic is heavier. This keeps team scores fair against solo scores on the same board.
-- At the end, each player enters a name and company. The board shows `PAUL & GRANT - BMP SUPPLIES` with both faces. The ending scene shows Player 1's hero.
+- The team **shares 4 hearts**. Anyone's mistake costs the team (a hit, a washout, a missed drain). Game over at 0.
+- Curtain sites: 1P drives the Lakeshore boat and 2P drives the Riverbank boat.
+- Balance: 2-player sites have the **same number of patches and drains to score** as solo, so the most points possible is the same. The added difficulty is danger, not extra chances to score: patches wash out about 30% faster, the Inspector walks 20% faster, and traffic comes about 30% more often and 12% faster. Bot tests put a good duo and a good solo player at about the same score on every site.
+- At the end: 1P name, 2P name, then one company (the team is assumed to work for the same company). The board shows `PAUL & GRANT - BMP SUPPLIES` with both faces. The ending scene shows Player 1's hero.
 - CSV export: one row per person, with a `players` column (1 or 2) and a `teammate` column. A team's two rows share the same rank and score.
 
 ## Retro USB controller (NES style)
