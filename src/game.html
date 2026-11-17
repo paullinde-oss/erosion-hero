@@ -273,7 +273,7 @@
   /* ---------- Leaderboard ---------- */
   .lb{ list-style:none; margin:0; padding:0; width:100%; display:flex; flex-direction:column; gap:calc(var(--u)*2); }
   .lb li{
-    display:grid; grid-template-columns:calc(var(--u)*20) 1fr calc(var(--u)*50);
+    display:grid; grid-template-columns:calc(var(--u)*16) 1fr calc(var(--u)*38);
     align-items:center; gap:calc(var(--u)*4);
     padding:calc(var(--u)*3) calc(var(--u)*5);
     background:rgba(13,11,8,.7); border:calc(var(--u)*0.5) solid var(--panel-line);
@@ -282,7 +282,8 @@
   .lb li .rk{ color:var(--muted); }
   .lb li:nth-child(1) .rk{ color:#ffd84a; } .lb li:nth-child(2) .rk{ color:#cfd6dc; } .lb li:nth-child(3) .rk{ color:#d08a4a; }
   .lb li .who{ overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-  .lb li .co{ display:block; color:var(--muted); font-size:calc(var(--u)*5); margin-top:calc(var(--u)*2); }
+  .lb li .co{ color:var(--muted); }
+  .lb li .who.wrap{ white-space:normal; line-height:1.7; font-size:calc(var(--u)*5); }
   .lb li .sc{ text-align:right; color:var(--hazard); }
   .lb li.me{ border-color:var(--hazard); background:rgba(232,185,35,.16); animation:meGlow .8s steps(2) infinite; }
   @keyframes meGlow{ 50%{ background:rgba(232,185,35,.04); } }
@@ -345,6 +346,13 @@
   .cs-mystery .cs-ico{ width:calc(var(--u)*64); height:calc(var(--u)*48); }
   #charScreen.secret{ background:linear-gradient(180deg,#3a0d55 0%,#5a1a7a 55%,#25083a 100%); }
   .cs-cell.picked{ outline-color:#fff3c4; animation:none; }
+  /* 2 players: blue 2P cursor; the hero 1P already took is marked and can't be picked again */
+  #charScreen.p2 .cs-cell.sel, #charScreen.p2 .cs-wide.sel{ outline-color:#3a8dff; }
+  #charScreen.p2 .cs-cell.sel::after{ content:'2P'; background:#3a8dff; }
+  .cs-cell.taken img{ opacity:.35; filter:grayscale(1); }
+  .cs-cell.taken::before{ content:'1P'; position:absolute; bottom:0; right:0; font-size:calc(var(--u)*7); line-height:1; padding:calc(var(--u)*1.5) calc(var(--u)*2); background:#ff3a1a; color:#fff; }
+  .cs-cell.shake{ animation:csShake .3s; }
+  .lb li .face2{ margin-left:calc(var(--u)*-6); }
   @keyframes csBlink{ 50%{ outline-color:#fff3c4; } }
   .cs-help{ font-size:calc(var(--u)*6); color:#dfe8ff; }
   .cs-help b{ color:var(--hazard); font-weight:normal; }
@@ -581,6 +589,18 @@
         <button class="btn diff-btn" data-act="diff" data-d="easy"><b>EASY</b><span>Kids &amp; first-timers &middot; 5 hearts</span></button>
         <button class="btn diff-btn" data-act="diff" data-d="medium"><b>MEDIUM</b><span>The classic run &middot; score x1.5</span></button>
         <button class="btn diff-btn" data-act="diff" data-d="hard"><b>HARD</b><span>For pros &middot; score x2</span></button>
+      </div>
+      <div class="cs-help"><b>A</b> SELECT &middot; <b>B</b> BACK</div>
+    </div>
+  </div>
+
+  <!-- PLAYERS (conference mode, before character select) -->
+  <div class="overlay dim hidden" id="playersScreen">
+    <div class="panel hazard diff-panel">
+      <h2>HOW MANY PLAYERS?</h2>
+      <div class="menu">
+        <button class="btn diff-btn" data-act="players" data-n="1"><b>1 PLAYER</b><span>Solo run &middot; 4 hearts</span></button>
+        <button class="btn diff-btn" data-act="players" data-n="2"><b>2 PLAYERS</b><span>Team up &middot; 2 hearts each &middot; tougher sites</span></button>
       </div>
       <div class="cs-help"><b>A</b> SELECT &middot; <b>B</b> BACK</div>
     </div>
@@ -943,7 +963,7 @@
     medium:{label:'MEDIUM', tag:'M', mult:1.5, lives:4},
     hard:  {label:'HARD',   tag:'H', mult:2,   lives:4}
   };
-  let runDiff='medium';
+  let runDiff='medium', coop=false;   // coop: 2-player Conference run
   const curDiff=()=>settings.mode==='show'?null:DIFFS[runDiff];
   const maxLives=()=>curDiff()?curDiff().lives:MAX_LIVES;
   function applyDifficulty(){
@@ -977,6 +997,11 @@
         else if(l.type==='road' && l.dir==='up'){ l.carSpeed*=1.1; l.obstacleIntervalMin*=0.85; l.obstacleIntervalMax*=0.85; }
         else if(l.type==='road'){ l.obstacleIntervalMin*=0.85; l.obstacleIntervalMax*=0.85; l.obstacleSpeedMult*=1.08; }
         else if(l.type==='curtain'){ if(l.current) l.current*=1.3; }
+      }
+      if(coop){   // two heroes cover twice the ground, so 2-player sites are busier to keep the board fair
+        if(l.type==='yard'){ l.spawnInterval*=0.92; l.maxActive+=1; l.activeLifetime*=0.72; l.inspectorSpeed*=1.15; }
+        else if(l.type==='road' && l.dir==='up'){ l.basinSpawnInterval*=0.85; l.basinMax+=1; l.carSpeed*=1.1; l.obstacleIntervalMin*=0.75; l.obstacleIntervalMax*=0.75; }
+        else if(l.type==='road'){ l.basinSpawnInterval*=0.85; l.basinMax+=1; l.obstacleSpeedMult*=1.1; l.obstacleIntervalMin*=0.75; l.obstacleIntervalMax*=0.75; }
       }
       LEVELS.push(l);
     });
@@ -1197,6 +1222,18 @@
   // touching the screen brings them back.
   function usePhysicalControls(){ if(document.body.classList.contains('touch-mode')){ document.body.classList.remove('touch-mode'); touchLabels(); } }
 
+  // 2 players (Conference): every controller is tracked on its own so each player steers their own hero.
+  // Sources: 'kbA' = arrows + Space/Enter/right Shift/right Ctrl, 'kbB' = WASD + Q/E/left Shift/Ctrl/Alt/Z/X,
+  // 'padN' = gamepad N. lastSrc is whichever source pressed something most recently.
+  const KB_SRC={ArrowUp:['kbA','up'],ArrowDown:['kbA','down'],ArrowLeft:['kbA','left'],ArrowRight:['kbA','right'],
+    Space:['kbA','action'],Slash:['kbA','action'],ShiftRight:['kbA','action'],ControlRight:['kbA','action'],Enter:['kbA','start'],NumpadEnter:['kbA','start'],Backspace:['kbA','back'],
+    KeyW:['kbB','up'],KeyS:['kbB','down'],KeyA:['kbB','left'],KeyD:['kbB','right'],
+    KeyQ:['kbB','action'],KeyE:['kbB','action'],ShiftLeft:['kbB','action'],ControlLeft:['kbB','action'],AltLeft:['kbB','action'],KeyZ:['kbB','action'],KeyX:['kbB','action'],Digit1:['kbB','start']};
+  const kbCodes={}, srcHeld={}, padPrevAny={};
+  let lastSrc=null;
+  window.addEventListener('keydown', e=>{ if(KB_SRC[e.code]){ kbCodes[e.code]=true; if(!e.repeat) lastSrc=KB_SRC[e.code][0]; } }, true);
+  window.addEventListener('keyup', e=>{ kbCodes[e.code]=false; }, true);
+  window.addEventListener('blur', ()=>{ for(const k in kbCodes) kbCodes[k]=false; });
   window.addEventListener('keydown', e=>{
     markInput(); Snd.unlock(); usePhysicalControls();
     if(e.code==='Backquote'){ if(state!=='PIN' && state!=='ADMIN') openPin('unlock'); e.preventDefault(); return; }
@@ -1223,10 +1260,18 @@
     BTNS.forEach(b=>padHeld[b]=false);
     const pads=navigator.getGamepads?navigator.getGamepads():[];
     let sig='';
+    for(const k in srcHeld) if(k.startsWith('pad')) delete srcHeld[k];
     for(const gp of pads){
       if(!gp) continue;
       const B=i=>!!(gp.buttons[i] && gp.buttons[i].pressed);
       const ax=gp.axes[0]||0, ay=gp.axes[1]||0;
+      const st={up:B(12)||ay<-0.5, down:B(13)||ay>0.5, left:B(14)||ax<-0.5, right:B(15)||ax>0.5,
+                action:settings.padA!=null?B(settings.padA):(B(0)||B(1)||B(2)||B(3)||B(4)||B(5)),
+                back:settings.padA!=null?B(settings.padB):false, start:B(9)};
+      srcHeld['pad'+gp.index]=st;
+      const any=gp.buttons.some(b=>b&&b.pressed)||Math.abs(ax)>0.5||Math.abs(ay)>0.5;
+      if(any && !padPrevAny[gp.index]) lastSrc='pad'+gp.index;
+      padPrevAny[gp.index]=any;
       if(B(12)||ay<-0.5) padHeld.up=true;
       if(B(13)||ay>0.5) padHeld.down=true;
       if(B(14)||ax<-0.5) padHeld.left=true;
@@ -1261,11 +1306,19 @@
         if(repT[b]>D && Math.floor((repT[b]-D)/R)!==Math.floor(Math.max(0,before-D)/R)) rep[b]=true;
       }
     }
+    for(const k of ['kbA','kbB']){
+      const h=srcHeld[k]={};
+      for(const c in KB_SRC) if(kbCodes[c] && KB_SRC[c][0]===k) h[KB_SRC[c][1]]=true;
+    }
+    if(coop) for(const p of P){ const h=srcHeld[p.src]||{};
+      p.held={up:!!h.up, down:!!h.down, left:!!h.left, right:!!h.right, action:!!(h.action||h.back)}; }   // B lays too
   }
+  // IN = the controls steering the hero being updated: the merged input solo, that player's own controller in 2P
+  let IN=held;
   function inputVec(){
     let x=0,y=0;
-    if(held.up) y-=1; if(held.down) y+=1;
-    if(held.left) x-=1; if(held.right) x+=1;
+    if(IN.up) y-=1; if(IN.down) y+=1;
+    if(IN.left) x-=1; if(IN.right) x+=1;
     if(x!==0&&y!==0){ x*=0.7071; y*=0.7071; }
     return {x,y};
   }
@@ -1329,7 +1382,7 @@
   // =====================================================================
   //  MENUS: every overlay button is reachable by joystick/keys as well as mouse/touch
   // =====================================================================
-  const OVERLAYS=['diffScreen','ctrlScreen','endScreen','howScreen','pinScreen','titleScreen','charScreen','padScreen','briefScreen','pauseScreen','clearScreen','resultsScreen','entryScreen','boardScreen','adminScreen'];
+  const OVERLAYS=['playersScreen','diffScreen','ctrlScreen','endScreen','howScreen','pinScreen','titleScreen','charScreen','padScreen','briefScreen','pauseScreen','clearScreen','resultsScreen','entryScreen','boardScreen','adminScreen'];
   let currentOverlay=null, menuFocus=0;
   function show(id){
     OVERLAYS.forEach(x=>$(x).classList.toggle('hidden', x!==id));
@@ -1467,7 +1520,7 @@
   }
   function boardHtml(list, highlightId){
     if(!list.length) return '<li class="lb-empty" style="display:block;text-align:center">NO SCORES YET &mdash; BE THE FIRST!</li>';
-    return list.map((r,i)=>`<li class="${r.id!=null&&r.id===highlightId?'me':''}"><span class="rk">${String(i+1).padStart(2,' ')}</span><span class="who">${crewById(r.crew)?`<img class="face" src="${crewById(r.crew).face}" alt="">`:''}${escapeHtml(r.name||'ANONYMOUS')}${settings.mode!=='show'?`<span class="dtag d${(r.difficulty||'M')}">${escapeHtml(r.difficulty||'M')}</span>`:''}${r.company?`<span class="co">${escapeHtml(r.company)}</span>`:''}</span><span class="sc">${r.score}</span></li>`).join('');
+    return list.map((r,i)=>`<li class="${r.id!=null&&r.id===highlightId?'me':''}"><span class="rk">${String(i+1).padStart(2,' ')}</span><span class="who${r.company?' wrap':''}">${crewById(r.crew)?`<img class="face" src="${crewById(r.crew).face}" alt="">`:''}${crewById(r.crew2)?`<img class="face face2" src="${crewById(r.crew2).face}" alt="">`:''}${escapeHtml(r.name||'ANONYMOUS')}${settings.mode!=='show'?`<span class="dtag d${(r.difficulty||'M')}">${escapeHtml(r.difficulty||'M')}</span>`:''}${r.company?`<span class="co"> - ${escapeHtml(r.company)}</span>`:''}</span><span class="sc">${r.score}</span></li>`).join('');
   }
 
   // =====================================================================
@@ -1489,6 +1542,67 @@
   let buildings={top:[],bottom:[]}, cones=[], skyline=[];
   let player={x:0,y:0,w:10,h:10,speed:62,layProgress:0,layTarget:null,layDir:'down',laying:false,facing:'down',moving:false,animTime:0,layTick:0};
   let inspector={x:0,y:0,speed:40,wpIndex:0,path:[],dirx:0,diry:1,seenTimer:0,animTime:0,alerted:false};
+  // ---------- 2 PLAYERS (Conference only) ----------
+  // P holds both players. The game code is written for one hero (player, HERO, invulnTimer, IN), so withP()
+  // swaps a player's state into those globals, runs the code, and saves it back. Solo play never uses it.
+  const COOP_HEARTS=2, TAG_COL=['#ff3a1a','#3a8dff'];
+  let P=[], curP=null, csPhase=1, teamTurn=0;
+  function setupPlayers(n){
+    coop=n===2; csPhase=1;
+    P=coop?[0,1].map(i=>({i, o:i===0?player:Object.assign({},player), hero:HERO, inv:0, lives:COOP_HEARTS, out:false, seen:0, alert:false, src:null, held:{}})):[];
+  }
+  function withP(p, fn){
+    const sv={player, HERO, inv:invulnTimer, IN};
+    player=p.o; HERO=p.hero; invulnTimer=p.inv; inspector.seenTimer=p.seen; inspector.alerted=p.alert; IN=p.held; curP=p;
+    try{ fn(); }
+    finally{
+      p.inv=invulnTimer; p.seen=inspector.seenTimer; p.alert=inspector.alerted;
+      player=sv.player; HERO=sv.HERO; invulnTimer=sv.inv; IN=sv.IN; curP=null;
+    }
+  }
+  // run fn once per hero still in the game (once, with no swap, in solo); stops if the site ends mid-loop
+  function eachP(fn){
+    if(!coop){ fn(); return; }
+    const st=state;
+    for(const p of P){ if(p.out) continue; if(state!==st) break; withP(p, fn); }
+  }
+  const overlapR=(o,b)=>o.x<b.x+b.w && o.x+o.w>b.x && o.y<b.y+b.h && o.y+o.h>b.y;
+  function coverBy(b){ return coop ? P.some(p=>!p.out && p.held.action && overlapR(p.o,b)) : (held.action && overlapR(player,b)); }
+  const heroObjs=()=>coop?P.map(p=>p.o):[player];
+  // curtain sites: 1P drives the first boat (Lakeshore), 2P the second (Riverbank); if one is out the other drives
+  function driverP(){
+    const k=LEVELS.slice(0,levelIdx).filter(l=>l.type==='curtain').length;
+    const d=P[k%2]; return d.out?P[1-d.i]:d;
+  }
+  function withDriver(fn){ if(coop) withP(driverP(), fn); else fn(); }
+  // place 2P beside 1P at the start of each site
+  function placeP2(lvl){
+    const a=P[0].o, b=P[1].o;
+    Object.assign(b, {layProgress:0, layTarget:null, laying:false, moving:false, animTime:0, facing:a.facing, x:a.x, y:a.y});
+    if(lvl.type==='road' && lvl.dir==='up') b.x=clamp(a.x-34, VR_L+2, VR_R-2-b.w);
+    else if(lvl.type==='road'){ b.y=a.y+26; if(b.y>ROAD_BOTTOM-2-b.h) b.y=a.y-26; }
+    else if(lvl.type==='yard'){
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[1,1],[-1,1],[1,-1],[-1,-1]]){
+        const x=a.x+dx*TILE, y=a.y+dy*TILE;
+        if(x>=TILE && y>=TILE && x<=COLS*TILE-TILE-b.w && y<=ROWS*TILE-TILE-b.h && !rectSolidAt(x,y,b.w,b.h)){ b.x=x; b.y=y; break; }
+      }
+    }
+    for(const p of P){ p.inv=0; p.seen=0; p.alert=false; }
+  }
+  function drawHeroP(p){ if(p) withP(p, drawPlayer); else drawPlayer(); }
+  function drawPTag(cx, topY){
+    if(!coop || !curP) return;
+    const c=TAG_COL[curP.i], x=Math.round(cx), y=Math.max(1,Math.round(topY)-7);
+    ctx.fillStyle='#0d0b08'; ctx.fillRect(x-7,y-1,15,7);
+    ctx.fillStyle=c; ctx.fillRect(x-6,y,13,5);
+    ctx.fillRect(x,y+5,1,2);
+    drawPixelSprite(TAG_GLYPH[curP.i], {w:'#fff'}, x-3, y, 1);
+  }
+  // tiny 3x5 "1P" / "2P" labels
+  const TAG_GLYPH=[
+    ['.w..ww.','ww..w.w','.w..ww.','.w..w..','www.w..'],
+    ['ww..ww.','..w.w.w','.w..ww.','w...w..','www.w..']
+  ];
   let countT=0, lastCount=0;
   let stageEndT=0, stageEndNext=null;
   let banner=null;
@@ -1645,6 +1759,7 @@
 
   function loadLevel(idx){
     const lvl=LEVELS[idx];
+    if(coop){ player=P[0].o; HERO=P[0].hero; IN=held; }
     particles=[]; popups=[]; banner=null;
     rainProgress=0; invulnTimer=0;
     player.layProgress=0; player.layTarget=null; player.laying=false; player.facing='down'; player.moving=false;
@@ -1698,6 +1813,7 @@
       const t=inspector.path[1]; const d=Math.hypot(t.x-inspector.x,t.y-inspector.y)||1;
       inspector.dirx=(t.x-inspector.x)/d; inspector.diry=(t.y-inspector.y)/d;
     }
+    if(coop) placeP2(lvl);
   }
 
   // =====================================================================
@@ -1709,8 +1825,12 @@
     sfx.select();
     if(what==='howto'){ state='HOWTO'; show('howScreen'); }
     else if(what==='board'){ showBoard(null, true); }
-    else if(settings.mode==='show') openCharSelect();
+    else if(settings.mode==='show') openPlayers();
     else openDiff();
+  }
+  function openPlayers(){
+    state='PLAYERS'; show('playersScreen');
+    menuFocus=coop?1:0; refreshFocus();
   }
   // ---------- HOW TO PLAY: controls for this setup + a looping demo with the chosen hero ----------
   const PAD_SVG=`<svg class="pad-svg" viewBox="0 0 60 26" shape-rendering="crispEdges">
@@ -1744,7 +1864,8 @@
     $('ctrlPad').innerHTML=pad;
     $('ctrlTips').innerHTML=`<div><span class="keycap">MOVE</span><span>${move}</span></div>
       <div><span class="keycap">HOLD ${act}</span><span>on <b>eroding soil</b> to lay a blanket, or on an <b>open drain</b> to protect it</span></div>
-      <div><span class="keycap">AVOID</span><span>The <b>Inspector's</b> sightline, water &amp; traffic</span></div>`;
+      <div><span class="keycap">AVOID</span><span>The <b>Inspector's</b> sightline, water &amp; traffic</span></div>`+
+      (coop?`<div><span class="keycap">2 PLAYERS</span><span><b style="color:#ff6a4a">1P ${escapeHtml(P[0].hero.name)}</b> &amp; <b style="color:#6aa8ff">2P ${escapeHtml(P[1].hero.name)}</b>: each on your own controller. 2 hearts each &mdash; if one is out, the other plays on!</span></div>`:'');
     $('ctrlGo').textContent=conf?'PRESS A TO START':touch?'TAP TO START':'PRESS SPACE TO START';
     demoCtx=$('ctrlDemo').getContext('2d'); demoCtx.imageSmoothingEnabled=false;
     state='CONTROLS'; ctrlT=0; show('ctrlScreen');
@@ -1791,10 +1912,11 @@
   function updateControls(dt){
     ctrlT+=dt; drawDemo(ctrlT);
     if(ctrlT>0.6 && (pressed.action||pressed.start)){ sfx.go(); lightKeys(null,false); startGame(0); }
-    else if(pressed.back){ sfx.select(); openCharSelect(); }
+    else if(pressed.back){ sfx.select(); if(coop){ csPhase=2; HERO=P[1].hero; } openCharSelect(); }
   }
   $('ctrlScreen').addEventListener('click', ()=>{ if(state==='CONTROLS' && ctrlT>0.6){ sfx.go(); startGame(0); } });
   function openDiff(){
+    setupPlayers(1);
     state='DIFF'; show('diffScreen');
     menuFocus=['easy','medium','hard'].indexOf(runDiff); refreshFocus();
   }
@@ -1843,8 +1965,10 @@
         : `<button class="cs-wide locked" data-i="${i}" ${at}>${LOCK_SVG}SECRET HEROES LOCKED</button>`;
     };
     $('csGrid').innerHTML=csEntries.map(cell).join('');
-    $('csHead').textContent=csView==='crew'?'SELECT YOUR CREW':'SECRET HEROES';
+    $('csHead').textContent=csView==='crew'?(coop?`PLAYER ${csPhase}: PICK YOUR HERO`:'SELECT YOUR CREW'):'SECRET HEROES';
     $('charScreen').classList.toggle('secret', csView==='secret');
+    $('charScreen').classList.toggle('p2', coop && csPhase===2);
+    if(coop && csPhase===2) $('csGrid').querySelectorAll('[data-i]').forEach(el=>{ const e=csEntries[+el.dataset.i]; el.classList.toggle('taken', e.kind==='hero' && e.c===P[0].hero); });
     $('csGrid').querySelectorAll('[data-i]').forEach(el=>{
       el.addEventListener('click', e=>{ e.stopPropagation(); const i=+el.dataset.i; if(i===csIdx) csActivate(); else { csIdx=i; renderCharSel(); sfx.move(); } });
       el.addEventListener('mouseenter', ()=>{ const i=+el.dataset.i; if(i!==csIdx && state==='CHARSEL' && !csPicked){ csIdx=i; renderCharSel(); } });
@@ -1874,6 +1998,7 @@
     if(CODE_IDS.includes(HERO.id) && !codeUnlocked) HERO=CREW[0];
     csView=isSecret(HERO)?'secret':'crew'; buildCharGrid();
     csIdx=Math.max(0, csEntries.findIndex(e=>e.c===HERO));
+    if(coop && csPhase===2 && csEntries[csIdx].c===P[0].hero){ const nav=csNav(); csIdx=nav[(nav.indexOf(csIdx)+1)%nav.length]; }
     show('charScreen'); renderCharSel();
     Snd.play('title');
   }
@@ -1888,10 +2013,26 @@
   }
   function pickChar(){
     if(csPicked) return;
-    HERO=csEntries[csIdx].c; csPicked=0.6; renderCharSel(); sfx.go();
+    const c=csEntries[csIdx].c;
+    if(coop && csPhase===2 && c===P[0].hero){   // heroes must be different
+      sfx.warn(); const el=$('csGrid').querySelector(`[data-i="${csIdx}"]`); if(el){ el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); } return;
+    }
+    if(coop){ P[csPhase-1].hero=c; P[csPhase-1].src=lastSrc; }
+    HERO=c; csPicked=0.6; renderCharSel(); sfx.go();
+  }
+  // each player keeps the controller they picked their hero with; if one controller picked both,
+  // 2P gets another controller (or the other half of the keyboard)
+  function resolveSources(){
+    const pads=(navigator.getGamepads?[...navigator.getGamepads()]:[]).filter(Boolean).map(g=>'pad'+g.index);
+    let a=P[0].src||pads[0]||'kbA', b=P[1].src;
+    if(!b || b===a) b=pads.find(s=>s!==a) || (a==='kbA'?'kbB':'kbA');
+    P[0].src=a; P[1].src=b;
   }
   function updateCharSelect(dt){
-    if(csPicked){ csPicked-=dt; if(csPicked<=0){ csPicked=0; openControls(); } return; }
+    if(csPicked){ csPicked-=dt; if(csPicked<=0){ csPicked=0;
+      if(coop && csPhase===1){ csPhase=2; openCharSelect(); return; }
+      if(coop){ HERO=P[0].hero; resolveSources(); }
+      openControls(); } return; }
     // move by grid position (columns in half-cells), rows wrap; empty slots are skipped
     const nav=csNav(), rows=Math.max(...nav.map(k=>csEntries[k].r))+1, mid=k=>csEntries[k].col+csEntries[k].span/2;
     let i=csIdx;
@@ -1907,7 +2048,9 @@
     if(rep.down) i=nearest((csEntries[i].r+1)%rows, mid(i));
     if(i!==csIdx){ csIdx=i; renderCharSel(); sfx.move(); }
     if(pressed.action||pressed.start) csActivate();
-    else if(pressed.back){ if(csView==='secret'){ sfx.select(); csSetView('crew', CREW.filter(c=>!isSecret(c)).length); } else if(settings.mode==='show') goTitle(); else openDiff(); }
+    else if(pressed.back){ if(csView==='secret'){ sfx.select(); csSetView('crew', CREW.filter(c=>!isSecret(c)).length); }
+      else if(coop && csPhase===2){ sfx.select(); csPhase=1; HERO=P[0].hero; openCharSelect(); }
+      else if(settings.mode==='show') openPlayers(); else openDiff(); }
   }
 
 
@@ -1935,6 +2078,7 @@
   function startGame(siteIdx){
     applyDifficulty();
     score=0; displayScore=0; lives=maxLives(); curtainAccuracy=null; curtainAccs=[];
+    if(coop){ P.forEach(p=>{ p.lives=COOP_HEARTS; p.out=false; }); lives=COOP_HEARTS*2; teamTurn=0; }
     levelIdx=siteIdx||0;
     beginSite();
   }
@@ -1943,7 +2087,7 @@
     const lvl=LEVELS[levelIdx];
     $('briefKicker').textContent=`SITE ${levelIdx+1} OF ${LEVELS.length} · ${settings.mode==='show'?'CONFERENCE':'PUBLIC: HARD'}`;
     $('briefName').textContent=lvl.name;
-    $('briefGoal').textContent=lvl.goal;
+    $('briefGoal').textContent=lvl.goal+(coop && lvl.type==='curtain'?` ${driverP().i+1}P ${driverP().hero.name} DRIVES THIS BOAT!`:'');
     $('briefTips').innerHTML=lvl.tips.map(t=>`<div class="tip"><span class="ico"><img src="${t.icon}" alt=""></span><span>${escapeHtml(t.text)}</span></div>`).join('');
     state='BRIEFING';
     show('briefScreen');
@@ -1974,14 +2118,30 @@
   function loseLife(msg, x, y, amount){
     amount=amount||1;
     const pen=Math.round(PTS_PENALTY*amount);
-    lives-=amount; siteStats.hits++;
+    let tgt=null;
+    if(coop){
+      // a hero's own hit costs that hero; a team miss (washout, drain) costs whoever has the most hearts left
+      tgt=curP || P.filter(p=>!p.out).sort((a,b)=>(b.lives-a.lives)||(a.i===teamTurn?-1:1))[0];
+      if(!tgt) return;
+      if(!curP) teamTurn=1-tgt.i;
+      tgt.lives-=amount;
+      if(curP) invulnTimer=INVULN_TIME; else tgt.inv=INVULN_TIME;
+      lives=P.reduce((a,p)=>a+Math.max(0,p.lives),0);
+    } else { lives-=amount; invulnTimer=INVULN_TIME; }
+    siteStats.hits++;
     score=Math.max(0,score-pen);
-    invulnTimer=INVULN_TIME; lostHeartT=0.8;
+    lostHeartT=0.8;
     shake(4,0.35); hitFlash=1;
     showBanner(msg,'bad',1.1);
     if(x!=null) popup(x,y,'-'+pen,'#ff5a3a');
     sfx.hurt();
     if(navigator.vibrate && document.body.classList.contains('touch-mode')) navigator.vibrate(60);
+    if(coop && tgt.lives<=0.001){
+      tgt.lives=0; tgt.out=true;
+      Object.assign(tgt.o, {laying:false, layTarget:null, layProgress:0});
+      burst(tgt.o.x+5, tgt.o.y+5, 18, ['#fff', TAG_COL[tgt.i], '#e8b923'], 60, 0.6);
+      if(P.some(p=>!p.out)){ showBanner(`${tgt.i+1}P ${tgt.hero.name}\nIS OUT!`,'bad',1.6); return; }
+    }
     if(lives<=0.001){
       lives=0;
       state='STAGE_END'; stageEndT=1.8; stageEndNext='GAMEOVER';
@@ -1992,7 +2152,7 @@
   function siteComplete(){
     const lvl=LEVELS[levelIdx];
     state='STAGE_END';
-    player.layTarget=null; player.layProgress=0; player.laying=false;
+    for(const o of heroObjs()){ o.layTarget=null; o.layProgress=0; o.laying=false; }
     if(lvl.type==='yard'){
       stageEndT=2.2; lightning=1; sfx.thunder();
       showBanner('STORM HIT!\nSITE HELD','good',2.2);
@@ -2108,8 +2268,9 @@
         levelIdx++; beginSite(); break;
       case 'save': startSaveFlow(); break;
       case 'skip': showBoard(null); break;
-      case 'again': if(settings.mode==='show') openCharSelect(); else openDiff(); break;
+      case 'again': if(settings.mode==='show') openPlayers(); else openDiff(); break;
       case 'diff': runDiff=el.dataset.d; openCharSelect(); break;
+      case 'players': setupPlayers(+el.dataset.n); openCharSelect(); break;
       case 'title': goTitle(); break;
       case 'site': qaMode=true; startGame(parseInt(el.dataset.site,10)); break;
       case 'toggle': settings[el.dataset.key]=!settings[el.dataset.key]; saveSettings(); applySettings(); break;
@@ -2134,7 +2295,7 @@
     const centerCol=Math.floor((player.x+player.w/2)/TILE);
     const centerRow=Math.floor((player.y+player.h/2)/TILE);
     const onTile=erosionTiles.find(t=>t.state==='active' && centerCol>=t.col && centerCol<t.col+t.w && centerRow>=t.row && centerRow<t.row+t.h);
-    const laying=!!(onTile && held.action);
+    const laying=!!(onTile && IN.action);
     player.laying=laying;
     player.moving=!laying && (v.x!==0||v.y!==0);
     if(player.moving) player.animTime+=dt; else player.animTime=0;
@@ -2198,7 +2359,7 @@
       if(!t.warned && t.timer<lvl.activeLifetime*0.35){ t.warned=true; sfx.warn(); }
       if(t.timer<=0){
         t.state='dormant'; t.timer=0;
-        if(player.layTarget===t){ player.layTarget=null; player.layProgress=0; player.laying=false; }
+        for(const o of heroObjs()) if(o.layTarget===t){ o.layTarget=null; o.layProgress=0; o.laying=false; }
         const cx=(t.col+t.w/2)*TILE, cy=(t.row+t.h/2)*TILE;
         burst(cx,cy,26,['#5e3f24','#7a5230','#3a2a18','#4a7aa0'],60,0.7);
         sfx.washout();
@@ -2209,6 +2370,11 @@
   }
 
   function updateInspector(dt){
+    inspectorMove(dt);
+    eachP(()=>inspectorSight(dt));
+    if(coop){ const live=P.filter(p=>!p.out); inspector.seenTimer=Math.max(0,...live.map(p=>p.seen)); inspector.alerted=live.some(p=>p.alert); }
+  }
+  function inspectorMove(dt){
     inspector.animTime+=dt;
     const target=inspector.path[inspector.wpIndex];
     const dx=target.x-inspector.x, dy=target.y-inspector.y;
@@ -2224,6 +2390,8 @@
       const step=Math.min(dist, inspector.speed*dt);
       inspector.x+=tx*step; inspector.y+=ty*step;
     }
+  }
+  function inspectorSight(dt){
     // sightline check against the player
     const px=player.x+player.w/2, py=player.y+player.h/2;
     const ddx=px-inspector.x, ddy=py-inspector.y;
@@ -2247,6 +2415,7 @@
   }
 
   function updateRoad(dt,lvl){
+    eachP(()=>{
     const v=inputVec();
     if(v.x<0) player.facing='left'; else if(v.x>0) player.facing='right';
     else if(v.y<0) player.facing='up'; else if(v.y>0) player.facing='down';
@@ -2255,6 +2424,7 @@
 
     player.x=clamp(player.x+v.x*player.speed*dt, 2, VIEW_W-2-player.w);
     player.y=clamp(player.y+v.y*player.speed*dt, ROAD_TOP+2, ROAD_BOTTOM-2-player.h);
+    });
 
     const elapsedFrac=Math.min(1,rainProgress);
     const scrollSpeed=lvl.scrollSpeed*(1+elapsedFrac*0.3);
@@ -2283,8 +2453,7 @@
     for(let i=basins.length-1;i>=0;i--){
       const b=basins[i];
       b.x-=scrollSpeed*dt;
-      if(b.state==='active' && held.action &&
-         player.x<b.x+b.w && player.x+player.w>b.x && player.y<b.y+b.h && player.y+player.h>b.y){
+      if(b.state==='active' && coverBy(b)){
         b.state='covered';
         burst(b.x+b.w/2,b.y+b.h/2,14,['#d9c8a1','#e8b923','#fff3c4'],50,0.55);
         popup(b.x+b.w/2,b.y-4,'+'+PTS_COVER);
@@ -2338,12 +2507,14 @@
       // hit box = the lower body/wheels, since sprites are drawn from the side
       const top=o.kind==='bike'?0.3:0.45;
       const hx=o.x+2, hw=o.w-4, hy=o.y+o.h*top, hh=o.h*(1-top);
+      eachP(()=>{
       if(invulnTimer<=0 &&
          player.x<hx+hw && player.x+player.w>hx && player.y<hy+hh && player.y+player.h>hy){
         burst(player.x+5,player.y+5,12,['#fff','#e8b923','#d1440e'],70,0.4);
         loseLife(o.kind==='bike'?'RUN OVER BY\nTHE INSPECTOR!':'HIT BY TRAFFIC!', player.x+5, player.y-8);
-        if(state!=='PLAYING') return;
       }
+      });
+      if(state!=='PLAYING') return;
     }
   }
   function scrollLots(arr, dt, speed, side){
@@ -2452,7 +2623,7 @@
         return;
       case 'PIN':
         updatePin(); break;
-      case 'DIFF':
+      case 'DIFF': case 'PLAYERS':
         menuNav(); if(pressed.back){ sfx.select(); goTitle(); } break;
       case 'CONTROLS':
         updateControls(dt); break;
@@ -2475,15 +2646,16 @@
         break;
       }
       case 'PLAYING':
-        if(invulnTimer>0) invulnTimer-=dt;
+        if(coop) P.forEach(p=>{ if(p.inv>0) p.inv-=dt; });
+        else if(invulnTimer>0) invulnTimer-=dt;
         if(lvl.type==='road'){
           rainProgress+=dt/lvl.duration;
           if(lvl.dir==='up') updateUphill(dt,lvl); else updateRoad(dt,lvl);
         } else if(lvl.type==='curtain'){
-          updateCurtain(dt,lvl);
+          withDriver(()=>updateCurtain(dt,lvl));
         } else {
           rainProgress+=dt/lvl.duration;
-          updatePlayer(dt);
+          eachP(()=>updatePlayer(dt));
           if(state==='PLAYING') updateErosion(dt,lvl);
           if(state==='PLAYING') updateInspector(dt);
           Snd.setTempo(rainProgress>0.8?1.12:1);
@@ -2633,6 +2805,24 @@
       lastSavedId=entry.id;
       showBoard(entry.id);
     };
+    if(coop){                                  // 2 players: each enters a name and company
+      const t=s=>(s||'').trim();
+      openTextEntry('1P: ENTER NAME','STEP 1 OF 4',10,n1=>
+        openTextEntry('1P: ENTER COMPANY','STEP 2 OF 4',12,c1=>
+          openTextEntry('2P: ENTER NAME','STEP 3 OF 4',10,n2=>
+            openTextEntry('2P: ENTER COMPANY','STEP 4 OF 4',12,async c2=>{
+              const N1=t(n1)||'ANONYMOUS', N2=t(n2)||'ANONYMOUS', C1=t(c1), C2=t(c2);
+              const company=!C2||C1===C2?C1:!C1?C2:C1+' / '+C2;
+              const entry={name:N1+' & '+N2, company, crew:P[0].hero.id, crew2:P[1].hero.id,
+                players:[{name:N1,company:C1,crew:P[0].hero.id},{name:N2,company:C2,crew:P[1].hero.id}],
+                score, siteReached:reached, curtainAccuracy:curtainAvg(), date:new Date().toISOString()};
+              entry.id=entry.date+'|'+entry.name;
+              await Board.store.add(entry);
+              lastSavedId=entry.id;
+              showBoard(entry.id);
+            }))));
+      return;
+    }
     if(settings.mode==='public'){              // public board: names only
       openTextEntry('ENTER NAME','',10,name=>save(name,''));
       return;
@@ -2728,7 +2918,7 @@
   $('testToggleBtn').addEventListener('click', e=>{ e.stopPropagation(); openPin('unlock'); });
   document.querySelectorAll('.title-opt').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); if(state!=='TITLE') return; Snd.unlock(); titleSel=b.dataset.title; renderTitleSel(); titleChoose(titleSel); }));
   $('endScreen').addEventListener('click', ()=>{ if(state==='ENDING' && endT>1.2) showResults(true); });
-  $('titleScreen').addEventListener('click', ()=>{ if(state==='TITLE'){ Snd.unlock(); if(document.body.classList.contains('touch-mode') && !FRAME_BLOCKS_FS) enterFullscreen(); sfx.select(); openCharSelect(); } });
+  $('titleScreen').addEventListener('click', ()=>{ if(state==='TITLE'){ Snd.unlock(); if(document.body.classList.contains('touch-mode') && !FRAME_BLOCKS_FS) enterFullscreen(); sfx.select(); titleChoose('play'); } });
   // Conference leads: RESET only after the current list has been exported, then confirm.
   let clearArmed=false, clearArmTimer=null;
   async function armClear(btn){
@@ -2745,9 +2935,14 @@
   async function exportCsv(){
     const rows=Board.sort(await ConferenceStore.list());
     const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
-    const csv=['rank,name,company,score,site_reached,curtain_accuracy,date']
-      .concat(rows.map((r,i)=>[i+1,q(r.name),q(r.company),r.score,r.siteReached,r.curtainAccuracy==null?'':r.curtainAccuracy,q(r.date)].join(',')))
-      .join('\n');
+    // one row per person; a 2-player team shares its rank and score, with the partner in "teammate"
+    const out=[];
+    rows.forEach((r,i)=>{
+      const tail=[r.score,r.siteReached,r.curtainAccuracy==null?'':r.curtainAccuracy,q(r.date)];
+      if(r.players && r.players.length===2) r.players.forEach((p,k)=>out.push([i+1,2,q(p.name),q(p.company),q(r.players[1-k].name),...tail].join(',')));
+      else out.push([i+1,1,q(r.name),q(r.company),'',...tail].join(','));
+    });
+    const csv=['rank,players,name,company,teammate,score,site_reached,curtain_accuracy,date'].concat(out).join('\n');
     const a=document.createElement('a');
     a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
     a.download='erosion-hero-conference-leads-'+new Date().toISOString().slice(0,10)+'.csv';
@@ -2938,6 +3133,7 @@
       }
     }
     // laying: the blanket unrolls away from the hero, who works the roll at its leading edge
+    eachP(()=>{
     if(player.laying && player.layTarget){
       const t=player.layTarget, p=Math.max(0.04,player.layProgress);
       const x=t.col*TILE, y=t.row*TILE, W=t.w*TILE, H=t.h*TILE;
@@ -2960,7 +3156,9 @@
       ctx.fillStyle='rgba(0,0,0,0.28)';
       ctx.beginPath(); ctx.ellipse(px+pose.w/2, py+pose.h-1, pose.w*0.4, 2, 0, 0, Math.PI*2); ctx.fill();
       ctx.drawImage(pose.img, snap(px), snap(py), pose.w, pose.h);
+      drawPTag(px+pose.w/2, py);
     }
+    });
   }
 
   function drawWalker(downKey, upKey, sideKey, facing, animTime, moving, cx, bottomY, dw, dh){
@@ -3013,7 +3211,8 @@
   }
   function drawPlayer(){
     if(player.laying) return; // drawn in its laying pose on the tile instead
-    if(invulnTimer>0 && Math.floor(gameTime*12)%2===0) return;
+    const blink=invulnTimer>0 && Math.floor(gameTime*12)%2===0;
+    if(blink && !coop) return;
     const f=player.facing;
     const set=f==='up'?HERO.up:f==='down'?HERO.down:HERO.side;
     const step=Math.floor(player.animTime*8);
@@ -3021,6 +3220,8 @@
     const cx=player.x+player.w/2, bottomY=player.y+player.h;
     const snap=v=>Math.round(v*2)/2;
     const dx=snap(cx-HERO_W/2), dy=snap(bottomY-HERO_H-(player.moving&&step%2?0.5:0));
+    drawPTag(cx, dy);
+    if(blink) return;
     ctx.fillStyle='rgba(0,0,0,0.3)';
     ctx.beginPath(); ctx.ellipse(cx, bottomY-1, 5, 2.2, 0, 0, Math.PI*2); ctx.fill();
     if(f==='left'){ ctx.save(); ctx.scale(-1,1); ctx.drawImage(img, -(dx+HERO_W), dy, HERO_W, HERO_H); ctx.restore(); }
@@ -3033,9 +3234,11 @@
     drawErosion();
     drawSlopeHints();
     drawSightline();
-    // depth sort the two characters
-    if(inspector.y+6 < player.y+player.h){ drawInspector(); drawPlayer(); }
-    else { drawPlayer(); drawInspector(); }
+    // depth sort the characters
+    const items=(coop?P.filter(p=>!p.out):[null]).map(p=>({b:(p?p.o:player).y+(p?p.o:player).h, p}));
+    items.push({b:inspector.y+6, insp:true});
+    items.sort((a,b)=>a.b-b.b);
+    for(const it of items){ if(it.insp) drawInspector(); else drawHeroP(it.p); }
   }
 
   function drawRoad(){
@@ -3109,10 +3312,10 @@
       }
     }
     const items=obstacles.filter(o=>o.x<=VIEW_W).map(o=>({bottom:o.y+o.h, o}));
-    items.push({bottom:player.y+player.h, hero:true});
+    for(const p of (coop?P.filter(p=>!p.out):[null])) items.push({bottom:(p?p.o:player).y+(p?p.o:player).h, hero:true, p});
     items.sort((a,b)=>a.bottom-b.bottom);
     for(const it of items){
-      if(it.hero){ drawPlayer(); continue; }
+      if(it.hero){ drawHeroP(it.p); continue; }
       const o=it.o, ox=Math.round(o.x), oy=Math.round(o.y);
       ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fillRect(ox+3, oy+o.h-2, o.w-6, 3);
       if(o.kind!=='bike'){
@@ -3149,6 +3352,7 @@
     }
   }
   function updateUphill(dt,lvl){
+    eachP(()=>{
     const v=inputVec();
     // with no input the hero keeps trudging uphill with the scroll
     if(v.x<0) player.facing='left'; else if(v.x>0) player.facing='right';
@@ -3156,6 +3360,7 @@
     player.moving=true; player.animTime+=dt;
     player.x=clamp(player.x+v.x*player.speed*dt, VR_L+2, VR_R-2-player.w);
     player.y=clamp(player.y+v.y*player.speed*dt, 18, VIEW_H-6-player.h);
+    });
 
     const scrollSpeed=lvl.scrollSpeed*(1+Math.min(1,rainProgress)*0.25);
     const dy=scrollSpeed*dt;
@@ -3173,7 +3378,7 @@
       const b=basins[i];
       b.y+=dy;
       if(b.state==='active'){
-        if(held.action && player.x<b.x+b.w && player.x+player.w>b.x && player.y<b.y+b.h && player.y+player.h>b.y){
+        if(coverBy(b)){
           b.state='covered';
           burst(b.x+b.w/2,b.y+b.h/2,14,['#d9c8a1','#e8b923','#fff3c4'],50,0.55);
           popup(b.x+b.w/2,b.y-4,'+'+PTS_COVER);
@@ -3226,11 +3431,13 @@
          (o.dir==='down'?o.y+o.h>-4 && o.y<player.y:o.y<VIEW_H+4 && o.y>player.y)){ o.honked=true; sfx.honk(); }
       if((o.dir==='down' && o.y>VIEW_H+60) || (o.dir==='up' && o.y+o.h<-60)){ obstacles.splice(i,1); continue; }
       const hx=o.x+3, hw=o.w-6, hy=o.y+5, hh=o.h-10;   // forgiving: the body, not the mirrors
+      eachP(()=>{
       if(invulnTimer<=0 && player.x<hx+hw && player.x+player.w>hx && player.y<hy+hh && player.y+player.h>hy){
         burst(player.x+5,player.y+5,12,['#fff','#e8b923','#d1440e'],70,0.4);
         loseLife(o.kind==='truck'?'FLATTENED BY\nA BMP TRUCK!':'HIT BY TRAFFIC!', player.x+5, player.y-8);
-        if(state!=='PLAYING') return;
       }
+      });
+      if(state!=='PLAYING') return;
     }
   }
   function drawUphill(lvl){
@@ -3297,10 +3504,10 @@
     }
     // vehicles and the hero, back to front
     const items=obstacles.filter(o=>o.y<VIEW_H && o.y+o.h>0).map(o=>({bottom:o.y+o.h, o}));
-    items.push({bottom:player.y+player.h, hero:true});
+    for(const p of (coop?P.filter(p=>!p.out):[null])) items.push({bottom:(p?p.o:player).y+(p?p.o:player).h, hero:true, p});
     items.sort((a,b)=>a.bottom-b.bottom);
     for(const it of items){
-      if(it.hero){ drawPlayer(); continue; }
+      if(it.hero){ drawHeroP(it.p); continue; }
       const o=it.o, ox=Math.round(o.x), oy=Math.round(o.y);
       ctx.fillStyle='rgba(0,0,0,.3)'; ctx.fillRect(ox+2, oy+3, o.w, o.h);
       // headlight beams ahead of each car
@@ -3512,6 +3719,7 @@
     ctx.beginPath(); ctx.ellipse(dx+dw/2, dy+dh-2, dw*0.45, 3, 0, 0, Math.PI*2); ctx.fill();
     if(p.facing==='left'){ ctx.save(); ctx.scale(-1,1); ctx.drawImage(IMAGES.boat, -(dx+dw), dy, dw, dh); ctx.restore(); }
     else ctx.drawImage(IMAGES.boat, dx, dy, dw, dh);
+    drawPTag(dx+dw/2, dy-2);
   }
 
   function drawFX(){
@@ -3597,7 +3805,7 @@
     // progress meter: storm ETA / shift progress / distance to shore
     const icon=ICONS[lvl.type];
     drawPixelSprite(icon.rows, icon.pal, 70, lvl.type==='road'?5:4, 1);
-    const nH=maxLives(), bx=82, bw=58-(nH-MAX_LIVES)*12, by=5, bh=6;
+    const nH=coop?MAX_LIVES+1:maxLives(), bx=82, bw=58-(nH-MAX_LIVES)*12, by=5, bh=6;
     ctx.fillStyle='#3a2f22'; ctx.fillRect(bx-1,by-1,bw+2,bh+2);
     ctx.fillStyle='#000'; ctx.fillRect(bx,by,bw,bh);
     const p=clamp(rainProgress,0,1);
@@ -3609,6 +3817,18 @@
     // hearts
     // hearts: full, half (left half lit) or empty; the one just lost flashes white
     const flash=lostHeartT>0 && Math.floor(lostHeartT*10)%2;
+    if(coop){   // 1P hearts | 2P hearts, each pair underlined in its player's color
+      P.forEach((p,k)=>{
+        const x0=254-4*12-6+k*30;
+        ctx.fillStyle=p.out?'#3a2f22':TAG_COL[k]; ctx.fillRect(x0-1,13,24,2);
+        for(let i=0;i<COOP_HEARTS;i++){
+          const x=x0+i*12, fill=clamp(p.lives-i,0,1);
+          drawPixelSprite(HEART, fill>=1?HEART_PAL:HEART_EMPTY_PAL, x, 4, 1);
+          if(fill>0 && fill<1){ ctx.save(); ctx.beginPath(); ctx.rect(x,4,4,6); ctx.clip(); drawPixelSprite(HEART, HEART_PAL, x, 4, 1); ctx.restore(); }
+        }
+      });
+      return;
+    }
     for(let i=0;i<nH;i++){
       const x=254-nH*12+i*12, fill=clamp(lives-i,0,1);
       drawPixelSprite(HEART, fill>=1?HEART_PAL:HEART_EMPTY_PAL, x, 5, 1);
@@ -3631,7 +3851,7 @@
     ctx.beginPath(); ctx.rect(0,0,VIEW_W,VIEW_H); ctx.clip();
     if(lvl.type==='road' && lvl.dir==='up') drawUphill(lvl);
     else if(lvl.type==='road') drawRoad();
-    else if(lvl.type==='curtain') drawCurtain(lvl);
+    else if(lvl.type==='curtain') withDriver(()=>drawCurtain(lvl));
     else drawYard();
     drawFX();
     drawWeather();
@@ -3707,7 +3927,7 @@
     get units(){ return erosionTiles.filter(t=>t.state==='active').map(t=>({col:t.col,row:t.row,w:t.w,h:t.h,timer:t.timer})); },
     get grid(){ return grid; },
     get siteHits(){ return siteStats.hits; },
-    get crew(){ return HERO.id; }, get bikes(){ return obstacles.filter(o=>o.kind==="bike").map(o=>Math.round(o.x)); }, get mode(){ return settings.mode; },
+    get crew(){ return HERO.id; }, get coop(){ return coop?P.map(p=>({hero:p.hero.id, src:p.src, lives:p.lives, out:p.out, x:p.o.x, y:p.o.y, inv:p.inv})):null; }, get csPhase(){ return csPhase; }, qaCoop(n){ setupPlayers(n); if(coop){ P[0].src='pad0'; P[1].src='pad1'; P[1].hero=CREW[1]; } }, get bikes(){ return obstacles.filter(o=>o.kind==="bike").map(o=>Math.round(o.x)); }, get mode(){ return settings.mode; },
     isBadName(n){ return isBadName(n); },
     get banner(){ return banner&&banner.text; }, get cars(){ return obstacles.map(o=>({x:o.x,y:o.y,w:o.w,h:o.h,dir:o.dir})); }, get basins(){ return basins.map(b=>({x:b.x,y:b.y,side:b.side,state:b.state,fill:b.fill})); }, get hero(){ return {x:player.x, y:player.y, laying:player.laying, dir:player.layDir}; }
   };
