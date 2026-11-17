@@ -67,12 +67,6 @@
     image-rendering:pixelated; image-rendering:crisp-edges;
     display:block;
   }
-  #crt{
-    position:absolute; inset:0; pointer-events:none; z-index:30;
-    background:repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 calc(var(--u)*0.5), transparent calc(var(--u)*0.5) calc(var(--u)*1));
-    mix-blend-mode:multiply;
-  }
-  body.no-crt #crt{ display:none; }
 
   /* ---------- Overlays ---------- */
   .overlay{
@@ -666,7 +660,6 @@
         <div class="admin-row"><span>SECRET HEROES</span><button class="btn" data-act="toggle" data-key="secretHeroes"></button></div>
         <div class="admin-row"><span>MUSIC</span><button class="btn" data-act="toggle" data-key="music"></button></div>
         <div class="admin-row"><span>SOUND FX</span><button class="btn" data-act="toggle" data-key="sfx"></button></div>
-        <div class="admin-row"><span>CRT SCANLINES</span><button class="btn" data-act="toggle" data-key="crt"></button></div>
         <div class="admin-row"><span>IDLE RESET</span><button class="btn" data-act="toggle" data-key="idleReset"></button></div>
         <div class="admin-row"><span>DISPLAY</span><button class="btn" data-act="fullscreen">FULLSCREEN</button></div>
         <div class="admin-row"><span>OPERATOR PIN</span><button class="btn" data-act="pinChange">CHANGE</button></div>
@@ -681,7 +674,6 @@
     </div>
   </div>
 
-  <div id="crt"></div>
 </div>
 
 <div id="touch">
@@ -793,14 +785,11 @@
   //  SETTINGS (operator menu, persisted on this device)
   // =====================================================================
   const SETTINGS_KEY='erosionHeroSettings_v1';
-  const settings=Object.assign({music:true, sfx:true, crt:false, idleReset:true, mode:'public', secretHeroes:true, pin:'123', leadsExportedAt:null, padA:null, padB:null}, (()=>{
+  const settings=Object.assign({music:true, sfx:true, idleReset:true, mode:'public', secretHeroes:true, pin:'123', leadsExportedAt:null, padA:null, padB:null}, (()=>{
     try{ return JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'); }catch(e){ return {}; }
   })());
   function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }catch(e){} }
-  // scanlines now default OFF (they blur small faces); switch off once on browsers that saved them ON
-  if(!settings.crtOffV2){ settings.crt=false; settings.crtOffV2=true; saveSettings(); }
   function applySettings(){
-    document.body.classList.toggle('no-crt', !settings.crt);
     Snd.setVolumes();
     document.querySelectorAll('[data-act="toggle"]').forEach(b=>{ b.textContent=settings[b.dataset.key]?(b.dataset.key==='secretHeroes'?'UNLOCKED':'ON'):(b.dataset.key==='secretHeroes'?'LOCKED':'OFF'); });
     $('modeBtn').textContent=settings.mode==='show'?'CONFERENCE':'PUBLIC';
