@@ -487,7 +487,7 @@
       </div>
       <div class="cs-right">
         <div class="cs-grid" id="csGrid"></div>
-        <div class="cs-help"><b>A</b> SELECT &middot; <b>B</b> BACK</div>
+        <div class="cs-help" id="csHelp"><b>A</b> SELECT &middot; <b>B</b> BACK</div>
       </div>
     </div>
   </div>
@@ -602,7 +602,7 @@
       <h2>HOW MANY PLAYERS?</h2>
       <div class="menu">
         <button class="btn diff-btn" data-act="players" data-n="1"><b>1 PLAYER</b><span>Solo run</span></button>
-        <button class="btn diff-btn" data-act="players" data-n="2"><b>2 PLAYERS</b><span>Team up &middot; share 4 hearts</span></button>
+        <button class="btn diff-btn" data-act="players" data-n="2"><b>2 PLAYERS</b><span id="p2Line">Team up &middot; share hearts</span></button>
       </div>
       <div class="cs-help"><b>A</b> SELECT &middot; <b>B</b> BACK</div>
     </div>
@@ -1206,6 +1206,7 @@
     ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down',
     ArrowLeft:'left', KeyA:'left', ArrowRight:'right', KeyD:'right',
     Space:'action', KeyZ:'action', KeyX:'action', ControlLeft:'action', AltLeft:'action', ShiftLeft:'action',
+    Slash:'action', Period:'action', Numpad0:'action', ShiftRight:'action', ControlRight:'action', KeyQ:'action', KeyE:'action',   // 2P on one keyboard
     Enter:'start', NumpadEnter:'start', Digit1:'start',
     Escape:'pause', KeyP:'pause', Backspace:'back'
   };
@@ -1220,12 +1221,12 @@
   function usePhysicalControls(){ if(document.body.classList.contains('touch-mode')){ document.body.classList.remove('touch-mode'); touchLabels(); } }
 
   // 2 players (Conference): every controller is tracked on its own so each player steers their own hero.
-  // Sources: 'kbA' = arrows + Space/Enter/right Shift/right Ctrl, 'kbB' = WASD + Q/E/left Shift/Ctrl/Alt/Z/X,
+  // Sources: 'kbA' = arrows + / (or . , right Shift, right Ctrl, Numpad 0), 'kbB' = WASD + Space (or Q/E/left Shift/Ctrl/Alt/Z/X),
   // 'padN' = gamepad N. lastSrc is whichever source pressed something most recently.
   const KB_SRC={ArrowUp:['kbA','up'],ArrowDown:['kbA','down'],ArrowLeft:['kbA','left'],ArrowRight:['kbA','right'],
-    Space:['kbA','action'],Slash:['kbA','action'],ShiftRight:['kbA','action'],ControlRight:['kbA','action'],Enter:['kbA','start'],NumpadEnter:['kbA','start'],Backspace:['kbA','back'],
+    Slash:['kbA','action'],Period:['kbA','action'],Numpad0:['kbA','action'],ShiftRight:['kbA','action'],ControlRight:['kbA','action'],Enter:['kbA','start'],NumpadEnter:['kbA','start'],Backspace:['kbA','back'],
     KeyW:['kbB','up'],KeyS:['kbB','down'],KeyA:['kbB','left'],KeyD:['kbB','right'],
-    KeyQ:['kbB','action'],KeyE:['kbB','action'],ShiftLeft:['kbB','action'],ControlLeft:['kbB','action'],AltLeft:['kbB','action'],KeyZ:['kbB','action'],KeyX:['kbB','action'],Digit1:['kbB','start']};
+    Space:['kbB','action'],KeyQ:['kbB','action'],KeyE:['kbB','action'],ShiftLeft:['kbB','action'],ControlLeft:['kbB','action'],AltLeft:['kbB','action'],KeyZ:['kbB','action'],KeyX:['kbB','action'],Digit1:['kbB','start']};
   const kbCodes={}, srcHeld={}, padPrevAny={};
   let lastSrc=null;
   window.addEventListener('keydown', e=>{ if(KB_SRC[e.code]){ kbCodes[e.code]=true; if(!e.repeat) lastSrc=KB_SRC[e.code][0]; } }, true);
@@ -1444,7 +1445,8 @@
       const num=v=>v==null?{nullValue:null}:{integerValue:String(Math.round(v))};
       const r=await fetch(`${this.base}/scores?key=${this.key}`, {method:'POST', headers:{'Content-Type':'application/json'},
         body:JSON.stringify({fields:{name:{stringValue:e.name}, crew:{stringValue:e.crew}, score:num(e.score),
-          siteReached:num(e.siteReached), curtainAccuracy:num(e.curtainAccuracy), date:{stringValue:e.date}, difficulty:{stringValue:e.difficulty||'M'}}})});
+          siteReached:num(e.siteReached), curtainAccuracy:num(e.curtainAccuracy), date:{stringValue:e.date}, difficulty:{stringValue:e.difficulty||'M'},
+          ...(e.crew2?{crew2:{stringValue:e.crew2}}:{})}})});
       if(!r.ok) throw new Error('firestore add '+r.status);
     },
     async top(n){
@@ -1453,7 +1455,7 @@
       if(!r.ok) throw new Error('firestore query '+r.status);
       const val=f=>f==null?null:f.integerValue!=null?Number(f.integerValue):f.stringValue!=null?f.stringValue:null;
       return (await r.json()).filter(x=>x.document).map(x=>{ const f=x.document.fields||{};
-        const e={name:val(f.name), crew:val(f.crew), score:val(f.score), siteReached:val(f.siteReached), curtainAccuracy:val(f.curtainAccuracy), date:val(f.date), difficulty:val(f.difficulty)||'M'};
+        const e={name:val(f.name), crew:val(f.crew), score:val(f.score), siteReached:val(f.siteReached), curtainAccuracy:val(f.curtainAccuracy), date:val(f.date), difficulty:val(f.difficulty)||'M', crew2:val(f.crew2)||undefined};
         e.id=e.date+'|'+e.name; return e; });
     }
   };
@@ -1475,12 +1477,15 @@
     async sync(){
       if(!Firestore || this.syncing) return;
       this.syncing=true;
-      try{
-        for(const e of this.local().filter(e=>e.pending)){
+      for(const e of this.local().filter(e=>e.pending)){
+        try{
           await Firestore.add(e);
           writeJson(BOARD_KEYS.public, this.local().map(x=>x.id===e.id?Object.assign({},x,{pending:false}):x));
+        }catch(err){
+          if(!/firestore add 4/.test(err.message)) break;   // offline: try again later
+          // refused by the server rules: keep it on this device and retry next time, but carry on with the rest
         }
-      }catch(err){ /* offline: try again later */ }
+      }
       this.syncing=false;
     },
     async clear(){ writeJson(BOARD_KEYS.public,[]); }
@@ -1822,10 +1827,12 @@
     sfx.select();
     if(what==='howto'){ state='HOWTO'; show('howScreen'); }
     else if(what==='board'){ showBoard(null, true); }
-    else if(settings.mode==='show') openPlayers();
-    else openDiff();
+    else openPlayers();
   }
+  const touchOnly=()=>document.body.classList.contains('touch-mode');
   function openPlayers(){
+    if(settings.mode!=='show' && touchOnly()){ setupPlayers(1); openDiff(); return; }
+    $('p2Line').textContent=settings.mode==='show'?'Team up \u00b7 share hearts':'Share a keyboard or use 2 controllers';
     state='PLAYERS'; show('playersScreen');
     menuFocus=coop?1:0; refreshFocus();
   }
@@ -1857,12 +1864,23 @@
       const cluster=(u,l,d,r)=>`<div class="kb"><div class="kb-row"><span class="kc" data-k="up">${u}</span></div><div class="kb-row"><span class="kc" data-k="left">${l}</span><span class="kc" data-k="down">${d}</span><span class="kc" data-k="right">${r}</span></div></div>`;
       pad=`<div class="kb-wrap"><div class="kb-pair">${cluster('W','A','S','D')}<span class="kb-or">OR</span>${cluster(tri(0),tri(270),tri(180),tri(90))}</div><span class="kb-cap">MOVE</span><span class="kc wide" data-k="act">SPACE</span><span class="kb-cap">LAY / PROTECT</span></div>`;
       move='W A S D or the arrow keys'; act='SPACE';
+      if(coop){   // one column per player, showing that player's own keys (or controller)
+        const col=(p,lit)=>{
+          const k=lit?'':'x', c=(u,l,d,r)=>cluster(u,l,d,r).replace(/data-k="/g,`data-k="${k}`);
+          const keys=p.src==='kbB'?c('W','A','S','D')+`<span class="kc wide" data-k="${k}act">SPACE</span>`
+            : p.src==='kbA'?c(tri(0),tri(270),tri(180),tri(90))+`<span class="kc" data-k="${k}act">/</span>`
+            : PAD_SVG.replace(/id="pad[A-Za-z]+"/g, m=>lit?m:'');
+          return `<div class="kb-wrap"><span class="kb-cap" style="color:${TAG_COL[p.i]}">${p.i+1}P ${escapeHtml(p.hero.name)}</span>${keys}${p.src&&p.src.startsWith('pad')?`<span class="kb-cap">${srcLabel(p.src)}</span>`:''}</div>`;
+        };
+        pad=`<div class="kb-pair">${col(P[0],true)}${col(P[1],false)}</div>`;
+        act='YOUR LAY KEY';
+      }
     }
     $('ctrlPad').innerHTML=pad;
-    $('ctrlTips').innerHTML=`<div><span class="keycap">MOVE</span><span>${move}</span></div>
-      <div><span class="keycap">HOLD ${act}</span><span>on <b>eroding soil</b> to lay a blanket, or on an <b>open drain</b> to protect it</span></div>
+    $('ctrlTips').innerHTML=(coop?'':`<div><span class="keycap">MOVE</span><span>${move}</span></div>`)+`
+      <div><span class="keycap">HOLD ${coop&&!conf?'LAY':act}</span><span>${coop&&!conf?'your lay key ':''}on <b>eroding soil</b> to lay a blanket, or on an <b>open drain</b> to protect it</span></div>
       <div><span class="keycap">AVOID</span><span>The <b>Inspector's</b> sightline, water &amp; traffic</span></div>`+
-      (coop?`<div><span class="keycap">2 PLAYERS</span><span><b style="color:#ff6a4a">1P ${escapeHtml(P[0].hero.name)}</b> &amp; <b style="color:#6aa8ff">2P ${escapeHtml(P[1].hero.name)}</b>: each on your own controller. You share 4 hearts &mdash; anyone's mistake costs the team!</span></div>`:'');
+      (coop?`<div><span class="keycap">TEAM</span><span>${conf?`<b style="color:#ff6a4a">1P ${escapeHtml(P[0].hero.name)}</b> &amp; <b style="color:#6aa8ff">2P ${escapeHtml(P[1].hero.name)}</b>, each on your own controller. `:''}You share ${maxLives()} hearts &mdash; anyone's mistake costs the team!</span></div>`:'');
     $('ctrlGo').textContent=conf?'PRESS A TO START':touch?'TAP TO START':'PRESS SPACE TO START';
     demoCtx=$('ctrlDemo').getContext('2d'); demoCtx.imageSmoothingEnabled=false;
     state='CONTROLS'; ctrlT=0; show('ctrlScreen');
@@ -1913,7 +1931,6 @@
   }
   $('ctrlScreen').addEventListener('click', ()=>{ if(state==='CONTROLS' && ctrlT>0.6){ sfx.go(); startGame(0); } });
   function openDiff(){
-    setupPlayers(1);
     state='DIFF'; show('diffScreen');
     menuFocus=['easy','medium','hard'].indexOf(runDiff); refreshFocus();
   }
@@ -1965,6 +1982,9 @@
     $('csHead').textContent=csView==='crew'?(coop?`PLAYER ${csPhase}: PICK YOUR HERO`:'SELECT YOUR CREW'):'SECRET HEROES';
     $('charScreen').classList.toggle('secret', csView==='secret');
     $('charScreen').classList.toggle('p2', coop && csPhase===2);
+    $('csHelp').innerHTML=coop && settings.mode!=='show'
+      ? `${csPhase}P: PICK WITH YOUR KEYS<br><b>WASD+SPACE</b> OR <b>ARROWS+/</b>`
+      : '<b>A</b> SELECT &middot; <b>B</b> BACK';
     if(coop && csPhase===2) $('csGrid').querySelectorAll('[data-i]').forEach(el=>{ const e=csEntries[+el.dataset.i]; el.classList.toggle('taken', e.kind==='hero' && e.c===P[0].hero); });
     $('csGrid').querySelectorAll('[data-i]').forEach(el=>{
       el.addEventListener('click', e=>{ e.stopPropagation(); const i=+el.dataset.i; if(i===csIdx) csActivate(); else { csIdx=i; renderCharSel(); sfx.move(); } });
@@ -2019,6 +2039,7 @@
   }
   // each player keeps the controller they picked their hero with; if one controller picked both,
   // 2P gets another controller (or the other half of the keyboard)
+  const srcLabel=src=>src==='kbB'?'W A S D + SPACE':src==='kbA'?'ARROWS + /':src&&src.startsWith('pad')?'CONTROLLER '+(+src.slice(3)+1):'?';
   function resolveSources(){
     const pads=(navigator.getGamepads?[...navigator.getGamepads()]:[]).filter(Boolean).map(g=>'pad'+g.index);
     let a=P[0].src||pads[0]||'kbA', b=P[1].src;
@@ -2250,9 +2271,9 @@
         levelIdx++; beginSite(); break;
       case 'save': startSaveFlow(); break;
       case 'skip': showBoard(null); break;
-      case 'again': if(settings.mode==='show') openPlayers(); else openDiff(); break;
+      case 'again': openPlayers(); break;
       case 'diff': runDiff=el.dataset.d; openCharSelect(); break;
-      case 'players': setupPlayers(+el.dataset.n); openCharSelect(); break;
+      case 'players': setupPlayers(+el.dataset.n); if(settings.mode==='show') openCharSelect(); else openDiff(); break;
       case 'title': goTitle(); break;
       case 'site': qaMode=true; startGame(parseInt(el.dataset.site,10)); break;
       case 'toggle': settings[el.dataset.key]=!settings[el.dataset.key]; saveSettings(); applySettings(); break;
@@ -2603,8 +2624,10 @@
         return;
       case 'PIN':
         updatePin(); break;
-      case 'DIFF': case 'PLAYERS':
+      case 'PLAYERS':
         menuNav(); if(pressed.back){ sfx.select(); goTitle(); } break;
+      case 'DIFF':
+        menuNav(); if(pressed.back){ sfx.select(); if(touchOnly()) goTitle(); else openPlayers(); } break;
       case 'CONTROLS':
         updateControls(dt); break;
       case 'ENDING':
@@ -2785,20 +2808,22 @@
       lastSavedId=entry.id;
       showBoard(entry.id);
     };
-    if(coop){                                  // 2 players: both names, then one shared company
-      const t=s=>(s||'').trim();
-      openTextEntry('1P: ENTER NAME','STEP 1 OF 3',10,n1=>
-        openTextEntry('2P: ENTER NAME','STEP 2 OF 3',10,n2=>
-          openTextEntry('ENTER COMPANY','STEP 3 OF 3',12,async c=>{
-              const N1=t(n1)||'ANONYMOUS', N2=t(n2)||'ANONYMOUS', company=t(c);
-              const entry={name:N1+' & '+N2, company, crew:P[0].hero.id, crew2:P[1].hero.id,
-                players:[{name:N1,company,crew:P[0].hero.id},{name:N2,company,crew:P[1].hero.id}],
-                score, siteReached:reached, curtainAccuracy:curtainAvg(), date:new Date().toISOString()};
-              entry.id=entry.date+'|'+entry.name;
-              await Board.store.add(entry);
-              lastSavedId=entry.id;
-              showBoard(entry.id);
-            })));
+    if(coop){                                  // 2 players: both names, then (conference) one shared company
+      const t=s=>(s||'').trim(), pub=settings.mode!=='show', n=pub?2:3;
+      const finish=async (n1,n2,c)=>{
+        const N1=t(n1)||'ANONYMOUS', N2=t(n2)||'ANONYMOUS', company=pub?'':t(c);
+        const entry={name:N1+' & '+N2, crew:P[0].hero.id, crew2:P[1].hero.id,
+          players:[{name:N1,company,crew:P[0].hero.id},{name:N2,company,crew:P[1].hero.id}],
+          score, siteReached:reached, curtainAccuracy:curtainAvg(), difficulty:curDiff()?curDiff().tag:undefined, date:new Date().toISOString()};
+        if(!pub) entry.company=company; else delete entry.players;
+        entry.id=entry.date+'|'+entry.name;
+        await Board.store.add(entry);
+        lastSavedId=entry.id;
+        showBoard(entry.id);
+      };
+      openTextEntry('1P: ENTER NAME',`STEP 1 OF ${n}`,10,n1=>
+        openTextEntry('2P: ENTER NAME',`STEP 2 OF ${n}`,10,n2=>
+          pub ? finish(n1,n2,'') : openTextEntry('ENTER COMPANY','STEP 3 OF 3',12,c=>finish(n1,n2,c))));
       return;
     }
     if(settings.mode==='public'){              // public board: names only

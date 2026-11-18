@@ -34,8 +34,10 @@ Difficulty follows the mode: CONFERENCE plays the base tuning (built for one or 
 - **CONFERENCE**: offline board on this laptop only (browser storage), name + company, title shows "CONFERENCE EDITION". **EXPORT CSV** downloads the leads ranked by score (the top row is your prize winner). **RESET** only works after exporting the current list, then asks to confirm, so the board is ready for the next event.
 - Both modes reject offensive names, including number spellings like 5H1T.
 
-## 2 players (Conference mode only)
-After PRESS START, the booth picks **1 PLAYER** or **2 PLAYERS**. In 2-player mode:
+## 2 players (Conference and Public)
+After PRESS START, players pick **1 PLAYER** or **2 PLAYERS** (Public then picks the difficulty). In 2-player mode:
+- Public: two people share one keyboard, with 1P on **W A S D + SPACE** and 2P on **ARROWS + /**, or each uses a game controller (Xbox, PlayStation and USB pads all work). Each player picks their hero using their own keys, and the How to Play screen shows who has which keys. 2-player isn't offered on phones and tablets, which have only one set of on-screen buttons.
+- Public team scores save as `PAUL & GRANT` (names only) with both faces and the difficulty badge.
 - Player 1 picks a hero (red 1P cursor), then Player 2 picks a different one (blue 2P cursor). Each player keeps the controller they picked with. With only one controller, Player 2 gets the keyboard.
 - The team **shares 4 hearts**. Anyone's mistake costs the team (a hit, a washout, a missed drain). Game over at 0.
 - Curtain sites: 1P drives the Lakeshore boat and 2P drives the Riverbank boat.
