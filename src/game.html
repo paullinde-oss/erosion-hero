@@ -187,6 +187,9 @@
   .howto b{ color:var(--hazard); font-weight:normal; }
   .keycap{ display:inline-block; border:calc(var(--u)*1) solid var(--muted); padding:calc(var(--u)*1) calc(var(--u)*2); color:var(--paper); }
 
+  .sound-toggle{ position:absolute; left:calc(var(--u)*4); bottom:calc(var(--u)*4); padding:calc(var(--u)*1.5); background:transparent; color:#fff3c4; border:none; cursor:pointer; z-index:20; line-height:0; }
+  .sound-toggle svg{ width:calc(var(--u)*16); height:calc(var(--u)*14); }
+  .sound-toggle.off{ color:rgba(255,243,196,.55); }
   .test-toggle{
     position:absolute; right:calc(var(--u)*4); bottom:calc(var(--u)*4);
     padding:calc(var(--u)*1.5); background:transparent; color:rgba(232,185,35,.45);
@@ -473,6 +476,7 @@
     <button class="fs-btn" id="fsBtn">FULL SCREEN</button>
     <div class="fs-hint">For full screen on iPhone: Share &rsaquo; Add to Home Screen</div>
     <div class="title-foot">&copy; BMP SUPPLIES</div>
+    <button class="sound-toggle" id="titleSoundBtn" aria-label="Sound on/off"><svg viewBox="0 0 16 14" shape-rendering="crispEdges"></svg></button>
     <button class="test-toggle" id="testToggleBtn" tabindex="-1" aria-label="Operator menu"><svg viewBox="0 0 16 11" shape-rendering="crispEdges"><path fill="currentColor" d="M6 0h4v1h2v1h1v1h1v3h1v2h1v2h-16v-2h1v-2h1v-3h1v-1h1v-1h2z"/><path fill="rgba(0,0,0,.35)" d="M7 1h2v6h-2zM1 8h14v1h-14z"/></svg></button>
   </div>
 
@@ -519,6 +523,7 @@
       <h2>PAUSED</h2>
       <div class="menu">
         <button class="btn" data-act="resume">RESUME</button>
+        <button class="btn" data-act="sound" id="pauseSoundBtn">SOUND: ON</button>
         <button class="btn" data-act="restart">RESTART</button>
         <button class="btn" data-act="quit">MAIN MENU</button>
       </div>
@@ -789,8 +794,15 @@
     try{ return JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'); }catch(e){ return {}; }
   })());
   function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }catch(e){} }
+  // One switch for players: SOUND turns music and sound effects on or off together
+  // (pause menu, the speaker on the title screen, or the M key). The operator menu still sets them separately.
+  const soundOn=()=>settings.music||settings.sfx;
+  function toggleSound(){ const on=!soundOn(); settings.music=on; settings.sfx=on; saveSettings(); applySettings(); if(on){ Snd.unlock(); sfx.select(); } }
   function applySettings(){
     Snd.setVolumes();
+    $('pauseSoundBtn').textContent='SOUND: '+(soundOn()?'ON':'OFF');
+    $('titleSoundBtn').classList.toggle('off', !soundOn());
+    $('titleSoundBtn').querySelector('svg').innerHTML=soundOn()?'<path fill="currentColor" d="M1 4h3l4-3v12l-4-3h-3z"/><path fill="currentColor" d="M10 4h1v1h1v4h-1v1h-1v-1h1v-4h-1zM12 2h1v1h1v1h1v6h-1v1h-1v1h-1v-1h1v-1h1v-6h-1v-1h-1z"/>':'<path fill="currentColor" d="M1 4h3l4-3v12l-4-3h-3z"/><path fill="currentColor" d="M10 4h1v1h1v1h1v-1h1v-1h1v1h-1v1h-1v1h1v1h1v1h-1v-1h-1v-1h-1v1h-1v1h-1v-1h1v-1h1v-1h-1v-1h-1z"/>';
     document.querySelectorAll('[data-act="toggle"]').forEach(b=>{ b.textContent=settings[b.dataset.key]?(b.dataset.key==='secretHeroes'?'UNLOCKED':'ON'):(b.dataset.key==='secretHeroes'?'LOCKED':'OFF'); });
     $('modeBtn').textContent=settings.mode==='show'?'CONFERENCE':'PUBLIC';
     $('modeBadge').classList.toggle('hidden', settings.mode!=='show');
@@ -1236,7 +1248,7 @@
     markInput(); Snd.unlock(); usePhysicalControls();
     if(e.code==='Backquote'){ if(state!=='PIN' && state!=='ADMIN') openPin('unlock'); e.preventDefault(); return; }
     if(e.code==='KeyF' && state!=='ENTRY'){ toggleFullscreen(); return; }
-    if(e.code==='KeyM' && state!=='ENTRY'){ settings.music=!settings.music; saveSettings(); applySettings(); return; }
+    if(e.code==='KeyM' && state!=='ENTRY'){ toggleSound(); return; }
     if(state==='ENTRY' && !e.ctrlKey && !e.metaKey && !e.altKey){
       if(/^Key[A-Z]$/.test(e.code)){ teType(e.code.slice(3)); e.preventDefault(); return; }
       if(/^Digit\d$/.test(e.code)){ teType(e.code.slice(5)); e.preventDefault(); return; }
@@ -2276,6 +2288,7 @@
       case 'players': setupPlayers(+el.dataset.n); if(settings.mode==='show') openCharSelect(); else openDiff(); break;
       case 'title': goTitle(); break;
       case 'site': qaMode=true; startGame(parseInt(el.dataset.site,10)); break;
+      case 'sound': toggleSound(); break;
       case 'toggle': settings[el.dataset.key]=!settings[el.dataset.key]; saveSettings(); applySettings(); break;
       case 'mode': settings.mode=settings.mode==='show'?'public':'show'; saveSettings(); applySettings(); refreshTitleScores(); break;
       case 'pinChange': openPin('set'); break;
@@ -2918,6 +2931,7 @@
     if(p.state==='TITLE'||!p.overlay){ goTitle(); return; }
     state=p.state; show(p.overlay);
   }
+  $('titleSoundBtn').addEventListener('click', e=>{ e.stopPropagation(); toggleSound(); });
   $('testToggleBtn').addEventListener('click', e=>{ e.stopPropagation(); openPin('unlock'); });
   document.querySelectorAll('.title-opt').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); if(state!=='TITLE') return; Snd.unlock(); titleSel=b.dataset.title; renderTitleSel(); titleChoose(titleSel); }));
   $('endScreen').addEventListener('click', ()=>{ if(state==='ENDING' && endT>1.2) showResults(true); });
