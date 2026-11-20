@@ -187,6 +187,8 @@
   .howto b{ color:var(--hazard); font-weight:normal; }
   .keycap{ display:inline-block; border:calc(var(--u)*1) solid var(--muted); padding:calc(var(--u)*1) calc(var(--u)*2); color:var(--paper); }
 
+  .snd-hint{ font-size:calc(var(--u)*5); color:var(--paper); background:rgba(13,11,8,.75); padding:calc(var(--u)*2) calc(var(--u)*4); }
+  .snd-hint.hidden{ display:none; }
   .snd-opt{ display:flex; align-items:center; gap:calc(var(--u)*3); }
   .snd-opt svg{ width:calc(var(--u)*8); height:calc(var(--u)*7); }
   /* the helmet (operator menu) can be picked with a controller: it lights up when selected */
@@ -474,6 +476,7 @@
         <button class="title-opt" data-title="board">LEADERBOARD</button>
         <button class="title-opt snd-opt" data-title="sound" id="titleSoundBtn" aria-label="Sound on/off"><svg viewBox="0 0 16 14" shape-rendering="crispEdges"></svg><span>ON</span></button>
       </div>
+      <div class="snd-hint hidden" id="sndHint">Press any key or click for sound</div>
     </div>
     <button class="fs-btn" id="fsBtn">FULL SCREEN</button>
     <div class="fs-hint">For full screen on iPhone: Share &rsaquo; Add to Home Screen</div>
@@ -813,12 +816,18 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   // One switch for players: SOUND turns music and sound effects on or off together
   // (pause menu, the speaker on the title screen, or the M key). The operator menu still sets them separately.
   const soundOn=()=>settings.music||settings.sfx;
-  function toggleSound(){ const on=!soundOn(); settings.music=on; settings.sfx=on; saveSettings(); applySettings(); if(on){ Snd.unlock(); sfx.select(); } }
+  const soundBlocked=()=>soundOn() && !Snd.running;
+  function toggleSound(){
+    if(soundBlocked()){ Snd.unlock(); $('sndHint').classList.remove('hidden'); return; }   // first press just starts the sound
+    if(performance.now()-audioStartedAt<500) return;   // this same press is what just started it
+    const on=!soundOn(); settings.music=on; settings.sfx=on; saveSettings(); applySettings(); if(on){ Snd.unlock(); sfx.select(); } }
   function applySettings(){
     Snd.setVolumes();
-    $('pauseSoundBtn').textContent='SOUND: '+(soundOn()?'ON':'OFF');
-    $('titleSoundBtn').querySelector('span').textContent=soundOn()?'ON':'OFF';
-    $('titleSoundBtn').querySelector('svg').innerHTML=soundOn()?'<path fill="currentColor" d="M1 4h3l4-3v12l-4-3h-3z"/><path fill="currentColor" d="M10 4h1v1h1v4h-1v1h-1v-1h1v-4h-1zM12 2h1v1h1v1h1v6h-1v1h-1v1h-1v-1h1v-1h1v-6h-1v-1h-1z"/>':'<path fill="currentColor" d="M1 4h3l4-3v12l-4-3h-3z"/><path fill="currentColor" d="M10 4h1v1h1v1h1v-1h1v-1h1v1h-1v1h-1v1h1v1h1v1h-1v-1h-1v-1h-1v1h-1v1h-1v-1h1v-1h1v-1h-1v-1h-1z"/>';
+    const heard=soundOn() && Snd.running;
+    $('pauseSoundBtn').textContent='SOUND: '+(heard?'ON':'OFF');
+    if(heard) $('sndHint').classList.add('hidden');
+    $('titleSoundBtn').querySelector('span').textContent=heard?'ON':'OFF';
+    $('titleSoundBtn').querySelector('svg').innerHTML=heard?'<path fill="currentColor" d="M1 4h3l4-3v12l-4-3h-3z"/><path fill="currentColor" d="M10 4h1v1h1v4h-1v1h-1v-1h1v-4h-1zM12 2h1v1h1v1h1v6h-1v1h-1v1h-1v-1h1v-1h1v-6h-1v-1h-1z"/>':'<path fill="currentColor" d="M1 4h3l4-3v12l-4-3h-3z"/><path fill="currentColor" d="M10 4h1v1h1v1h1v-1h1v-1h1v1h-1v1h-1v1h1v1h1v1h-1v-1h-1v-1h-1v1h-1v1h-1v-1h1v-1h1v-1h-1v-1h-1z"/>';
     document.querySelectorAll('[data-act="toggle"]').forEach(b=>{ b.textContent=settings[b.dataset.key]?(b.dataset.key==='secretHeroes'?'UNLOCKED':'ON'):(b.dataset.key==='secretHeroes'?'LOCKED':'OFF'); });
     $('modeBtn').textContent=settings.mode==='show'?'CONFERENCE':'PUBLIC';
     $('modeBadge').classList.toggle('hidden', settings.mode!=='show');
@@ -1126,6 +1135,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       if(ac) return true;
       try{ ac=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return false; }
       master=ac.createGain(); master.gain.value=0.8; master.connect(ac.destination);
+      ac.onstatechange=()=>{ applySettings(); if(ac.state==='running' && pending){ const p=pending; pending=null; play(p); } };
       musicBus=ac.createGain(); musicBus.connect(master);
       sfxBus=ac.createGain(); sfxBus.connect(master);
       noiseBuf=ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
@@ -1179,7 +1189,12 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       else if(kind==='h') noise(0.035,{gain:0.05,filter:'highpass',freq:7000,when:t,bus:musicBus});
     }
     function play(name){
-      if(!ac || ac.state!=='running'){ pending=name; if(ac) ac.resume(); return; }
+      if(!ensure()) return;
+      if(ac.state!=='running'){
+        pending=name;
+        ac.resume().then(()=>{ if(pending && ac.state==='running'){ const p=pending; pending=null; play(p); } }).catch(()=>{});
+        return;
+      }
       if(songName===name && song && song.loop) return;
       song=SONGS[name]; songName=name; step=0; nextT=ac.currentTime+0.06; tempoMul=1;
     }
@@ -1205,7 +1220,8 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
         }
       }
     }
-    return {unlock, play, stop, update, tone, noise, setVolumes, setTempo, get current(){ return songName; }};
+    return {unlock, play, stop, update, tone, noise, setVolumes, setTempo, get current(){ return songName; },
+            get running(){ return !!ac && ac.state==='running'; }};
   })();
 
   const sfx={
@@ -1312,7 +1328,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       if(B(8)) padHeld.pause=true;
     }
     BTNS.forEach(b=>{ sig+=padHeld[b]?'1':'0'; });
-    if(sig!==padPrevSig){ if(sig.indexOf('1')>=0){ markInput(); usePhysicalControls(); } padPrevSig=sig; }
+    if(sig!==padPrevSig){ if(sig.indexOf('1')>=0){ markInput(); usePhysicalControls(); Snd.unlock(); } padPrevSig=sig; }
   }
   function pollInput(dt){
     pollGamepads();
@@ -3903,8 +3919,10 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   //  MAIN LOOP
   // =====================================================================
   let last=performance.now();
+  let audioWas=null, audioStartedAt=-1e9;   // keep the SOUND labels true to what's actually playing
   function frame(now){
     let dt=(now-last)/1000; last=now;
+    if(Snd.running!==audioWas){ audioWas=Snd.running; if(audioWas) audioStartedAt=now; applySettings(); }
     dt=Math.min(dt,0.05);
     try{
       pollInput(dt);
@@ -3963,7 +3981,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     get units(){ return erosionTiles.filter(t=>t.state==='active').map(t=>({col:t.col,row:t.row,w:t.w,h:t.h,timer:t.timer})); },
     get grid(){ return grid; },
     get siteHits(){ return siteStats.hits; },
-    get crew(){ return HERO.id; }, get coop(){ return coop?P.map(p=>({hero:p.hero.id, src:p.src, x:p.o.x, y:p.o.y, inv:p.inv})):null; }, get csPhase(){ return csPhase; }, qaCoop(n){ setupPlayers(n); if(coop){ P[0].src='pad0'; P[1].src='pad1'; P[1].hero=CREW[1]; } }, get bikes(){ return obstacles.filter(o=>o.kind==="bike").map(o=>Math.round(o.x)); }, get mode(){ return settings.mode; },
+    get crew(){ return HERO.id; }, get coop(){ return coop?P.map(p=>({hero:p.hero.id, src:p.src, x:p.o.x, y:p.o.y, inv:p.inv})):null; }, get csPhase(){ return csPhase; }, get audioRunning(){ return Snd.running; }, qaCoop(n){ setupPlayers(n); if(coop){ P[0].src='pad0'; P[1].src='pad1'; P[1].hero=CREW[1]; } }, get bikes(){ return obstacles.filter(o=>o.kind==="bike").map(o=>Math.round(o.x)); }, get mode(){ return settings.mode; },
     isBadName(n){ return isBadName(n); },
     get banner(){ return banner&&banner.text; }, get cars(){ return obstacles.map(o=>({x:o.x,y:o.y,w:o.w,h:o.h,dir:o.dir})); }, get basins(){ return basins.map(b=>({x:b.x,y:b.y,side:b.side,state:b.state,fill:b.fill})); }, get hero(){ return {x:player.x, y:player.y, laying:player.laying, dir:player.layDir}; }
   };

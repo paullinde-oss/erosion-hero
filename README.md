@@ -61,7 +61,7 @@ After PRESS START, players pick from the six-person crew (Daryl, Sheryl, Marcus,
 - Before the doors open, tap the screen once after loading so the browser allows sound. Then turn off auto-lock/screen sleep, and lock the tablet to the game (Android: App Pinning; iPad: Guided Access).
 
 ## Kiosk setup (recommended)
-Launch Chrome in kiosk mode so audio starts without a click:
+Browsers block sound until someone clicks, taps or presses a key on the page. **Game controller buttons don't count.** At a controller-only booth, launch Chrome in kiosk mode with the flag below so the music plays from launch (or press any key on the laptop once after opening the game). Without it, the title's SOUND button reads OFF and shows "Press any key or click for sound" until that first key or click.
 
 ```
 chrome --kiosk --autoplay-policy=no-user-gesture-required "file:///path/to/Erosion_Hero.html"
