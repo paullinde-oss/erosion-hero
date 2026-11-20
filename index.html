@@ -1879,7 +1879,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   let ctrlT=0, demoCtx=null;
   function openControls(){
     const conf=settings.mode==='show', touch=document.body.classList.contains('touch-mode');
-    let pad, move, act;
+    let pad, move, act, coopKbNote='';
     const tri=r=>`<svg viewBox="0 0 8 8" shape-rendering="crispEdges"><path d="M4 1L7 6H1Z" fill="#1b1712" transform="rotate(${r} 4 4)"/></svg>`;
     if(conf){
       pad=`<div class="kb-wrap">${PAD_SVG}<span class="kb-cap">D-PAD: MOVE</span><span class="kb-cap">A: LAY / PROTECT</span></div>`;
@@ -1899,16 +1899,22 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
             : PAD_SVG.replace(/id="pad[A-Za-z]+"/g, m=>lit?m:'');
           return `<div class="kb-wrap"><span class="kb-cap" style="color:${TAG_COL[p.i]}">${p.i+1}P ${escapeHtml(p.hero.name)}</span>${keys}${p.src&&p.src.startsWith('pad')?`<span class="kb-cap">${srcLabel(p.src)}</span>`:''}</div>`;
         };
-        pad=`<div class="kb-pair">${col(P[0],true)}${col(P[1],false)}</div>`;
+        const names=`<span class="kb-cap"><span style="color:${TAG_COL[0]}">1P ${escapeHtml(P[0].hero.name)}</span> &amp; <span style="color:${TAG_COL[1]}">2P ${escapeHtml(P[1].hero.name)}</span></span>`;
+        const kbOnly=P.every(p=>!(p.src||'').startsWith('pad'));
+        pad=kbOnly ? `<div class="kb-pair">${col(P[0],true)}${col(P[1],false)}</div>`
+          // any controller in use: one controller picture, like the booth
+          : `<div class="kb-wrap">${PAD_SVG}<span class="kb-cap">D-PAD: MOVE</span><span class="kb-cap">A: LAY / PROTECT</span>${names}</div>`;
+        P.filter(p=>!(p.src||'').startsWith('pad')).forEach(p=>{ if(!kbOnly) coopKbNote+=`${p.i+1}P uses <b>${srcLabel(p.src)}</b>. `; });
         act='YOUR LAY KEY';
       }
     }
     $('ctrlPad').innerHTML=pad;
+    const padTeam=coop && !conf && P.some(p=>(p.src||'').startsWith('pad'));
     $('ctrlTips').innerHTML=(coop?'':`<div><span class="keycap">MOVE</span><span>${move}</span></div>`)+`
-      <div><span class="keycap">HOLD ${coop&&!conf?'LAY':act}</span><span>${coop&&!conf?'your lay key ':''}on <b>eroding soil</b> to lay a blanket, or on an <b>open drain</b> to protect it</span></div>
+      <div><span class="keycap">HOLD ${coop&&!conf?(padTeam?'A':'LAY'):act}</span><span>${coop&&!conf&&!padTeam?'your lay key ':''}on <b>eroding soil</b> to lay a blanket, or on an <b>open drain</b> to protect it</span></div>
       <div><span class="keycap">AVOID</span><span>The <b>Inspector's</b> sightline, water &amp; traffic</span></div>`+
-      (coop?`<div><span class="keycap">TEAM</span><span>${conf?`<b style="color:#ff6a4a">1P ${escapeHtml(P[0].hero.name)}</b> &amp; <b style="color:#6aa8ff">2P ${escapeHtml(P[1].hero.name)}</b>, each on your own controller. `:''}You share ${maxLives()} hearts &mdash; anyone's mistake costs the team!</span></div>`:'');
-    $('ctrlGo').textContent=conf?'PRESS A TO START':touch?'TAP TO START':'PRESS SPACE TO START';
+      (coop?`<div><span class="keycap">TEAM</span><span>${coopKbNote}${conf?`<b style="color:#ff6a4a">1P ${escapeHtml(P[0].hero.name)}</b> &amp; <b style="color:#6aa8ff">2P ${escapeHtml(P[1].hero.name)}</b>, each on your own controller. `:''}You share ${maxLives()} hearts &mdash; anyone's mistake costs the team!</span></div>`:'');
+    $('ctrlGo').textContent=conf||padTeam?'PRESS A TO START':touch?'TAP TO START':'PRESS SPACE TO START';
     demoCtx=$('ctrlDemo').getContext('2d'); demoCtx.imageSmoothingEnabled=false;
     state='CONTROLS'; ctrlT=0; show('ctrlScreen');
   }
