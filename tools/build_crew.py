@@ -16,7 +16,6 @@ CREW = [  # id, name, line shown on the select screen
     ("rosa", "ROSA", "Fastest blanket roller in three counties."),
     ("kenji", "KENJI", "Thirty storms in. Still hasn't lost a slope."),
     ("mike", "MIKE", "Six rings. Zero washouts. Flies over silt fence."),
-    ("leia", "LEIA", "Rebel leader. Somebody has to save this slope."),
     ("oprah", "OPRAH", "And YOU get a blanket! And YOU get a blanket!"),
     ("ralph", "RALPH", "Hates erosion more than he hates the Foot Clan."),
     ("wayne", "WAYNE", "The Great One. Never misses an open slope."),
