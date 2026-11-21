@@ -20,6 +20,7 @@ CREW = [  # id, name, line shown on the select screen
     ("ralph", "RALPH", "Hates erosion more than he hates the Foot Clan."),
     ("wayne", "WAYNE", "The Great One. Never misses an open slope."),
     ("chief", "CHIEF", "Wake me when there's a slope to save."),
+    ("rosie", "ROSIE", "We can do it! No slope too steep, no storm too big."),
     ("taylor", "TAYLOR", "Shakes off the silt. Never ever getting washed out again."),
     ("doug", "DOUG", "Hail Mary in a rainstorm? He's done it before."),
     ("hogan", "HOGAN", "Cup your ear, brother. Hear that? The slope says thanks."),
