@@ -48,6 +48,14 @@ After PRESS START, players pick **1 PLAYER** or **2 PLAYERS** (Public then picks
 - At the end: 1P name, 2P name, then one company (the team is assumed to work for the same company). The board shows `PAUL & GRANT - BMP SUPPLIES` with both faces. The ending scene shows Player 1's hero.
 - CSV export: one row per person, with a `players` column (1 or 2) and a `teammate` column. A team's two rows share the same rank and score.
 
+## Stakes Only (secret 2-player duel, operator menu)
+A just-for-fun mode for BMP Supplies staff. Open the operator menu (helmet, PIN) and choose **STAKES ONLY → PLAY**.
+- Player 1 then Player 2 pick a hero. Every hero is unlocked, cheat-code heroes included, and the two must be different.
+- The arena is Main Street with the street frozen: no drains, no Inspector. Cars and BMP trucks drive slowly from both sides (top lane right-to-left, bottom lane left-to-right).
+- D-pad (or WASD / arrows) moves. **A** (or Space / `/`) throws a blanket stake the way you're facing, with a short reload between throws.
+- 5 hearts each. A stake hit or a car costs one heart, followed by a short blink when you can't be hit. Cars block stakes, which stick in them.
+- Last player standing wins: a "WINS!" pop-up, then the winner's Job Well Done bar scene, then REMATCH / NEW HEROES / BACK (to the operator menu). Nothing is saved to a leaderboard.
+
 ## Retro USB controller (NES style)
 Generic USB pads number their buttons differently. Once per laptop: operator menu → CONTROLLER → press A, then B. After that A selects and lays blankets; B goes back (and also lays blankets during play). Start pauses.
 

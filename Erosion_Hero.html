@@ -582,6 +582,19 @@
     <div class="end-press blink">PRESS A</div>
   </div>
 
+  <!-- STAKES ONLY: after the winner's Job Well Done screen -->
+  <div class="overlay dim hidden" id="duelEndScreen">
+    <div class="panel hazard diff-panel">
+      <h2>STAKES ONLY</h2>
+      <div class="board-mode" id="duelEndSub"></div>
+      <div class="menu">
+        <button class="btn" data-act="duelAgain">REMATCH</button>
+        <button class="btn" data-act="duelHeroes">NEW HEROES</button>
+        <button class="btn" data-act="duelBack">BACK</button>
+      </div>
+    </div>
+  </div>
+
   <!-- LEADERBOARD -->
   <div class="overlay dim hidden" id="boardScreen">
     <div class="panel hazard">
@@ -668,6 +681,7 @@
         <div class="admin-row"><span>JUMP TO SITE</span>
           <div class="site-row" id="siteRow"></div>
         </div>
+        <div class="admin-row"><span>STAKES ONLY (2P DUEL)</span><button class="btn" data-act="stakes">PLAY</button></div>
         <div class="admin-row"><span>EVENT MODE</span><button class="btn" data-act="mode" id="modeBtn"></button></div>
         <div class="admin-row"><span>CONTROLLER</span><button class="btn" data-act="padSetup" id="padBtn">SET UP A / B</button></div>
         <div class="admin-row"><span>SECRET HEROES</span><button class="btn" data-act="toggle" data-key="secretHeroes"></button></div>
@@ -1429,7 +1443,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   // =====================================================================
   //  MENUS: every overlay button is reachable by joystick/keys as well as mouse/touch
   // =====================================================================
-  const OVERLAYS=['playersScreen','diffScreen','ctrlScreen','endScreen','howScreen','pinScreen','titleScreen','charScreen','padScreen','briefScreen','pauseScreen','clearScreen','resultsScreen','entryScreen','boardScreen','adminScreen'];
+  const OVERLAYS=['duelEndScreen','playersScreen','diffScreen','ctrlScreen','endScreen','howScreen','pinScreen','titleScreen','charScreen','padScreen','briefScreen','pauseScreen','clearScreen','resultsScreen','entryScreen','boardScreen','adminScreen'];
   let currentOverlay=null, menuFocus=0;
   function show(id){
     OVERLAYS.forEach(x=>$(x).classList.toggle('hidden', x!==id));
@@ -1599,6 +1613,12 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   // swaps a player's state into those globals, runs the code, and saves it back. Solo play never uses it.
   const TAG_COL=['#ff3a1a','#3a8dff'];
   let P=[], curP=null, csPhase=1;
+  // STAKES ONLY (secret 2-player duel from the operator menu): frozen Main Street, throw stakes, dodge traffic
+  const DUEL_LIVES=5, STAKE_SPEED=170, STAKE_RELOAD=0.55, DUEL_INV=1.5;
+  let duel=false, stakes=[], duelWin=null, duelWinT=0;
+  // erosion-control blanket stake (pointing right): notched head at the back, long tapered leg
+  const STAKE=['tttttttttttk','tddddddkk...','dk..........'];
+  const STAKE_PAL={t:'#d6b25e', d:'#8a6a2a', k:'#2a1d0e'};
   function setupPlayers(n){
     coop=n===2; csPhase=1;
     P=coop?[0,1].map(i=>({i, o:i===0?player:Object.assign({},player), hero:HERO, inv:0, out:false, seen:0, alert:false, src:null, held:{}})):[];
@@ -1881,6 +1901,132 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     else openPlayers();
   }
   const touchOnly=()=>document.body.classList.contains('touch-mode');
+  function openDuelSelect(){
+    duel=true; setupPlayers(2); codeUnlocked=true; startSound(); openCharSelect();
+  }
+  function duelBack(){
+    sfx.select(); duel=false; stakes=[]; setupPlayers(1); hideAll(); openAdmin({state:'TITLE'});
+  }
+  function startDuel(){
+    startSound(); duel=true; coop=true;
+    levelIdx=LEVELS.findIndex(l=>l.type==='road' && l.dir!=='up');   // Main Street, frozen
+    loadLevel(levelIdx);
+    basins=[]; obstacles=[]; truckSchedule=[]; stakes=[]; duelWin=null; obstacleTimer=2.2;
+    P.forEach((p,k)=>{
+      Object.assign(p.o,{x:k?VIEW_W-30:20, y:(ROAD_TOP+ROAD_BOTTOM)/2-4, facing:k?'left':'right', moving:false, laying:false, layTarget:null});
+      p.lives=DUEL_LIVES; p.inv=0; p.reload=0; p.prevAct=true; p.out=false;
+    });
+    score=0; lives=0;
+    hideAll(); state='COUNTDOWN'; countT=2.4; lastCount=0;
+    showBanner('STAKES ONLY','info',2.2);
+    Snd.play('road');
+  }
+  function openDuelEnd(){
+    $('duelEndSub').textContent=duelWin?`${duelWin.i+1}P ${duelWin.hero.name} WINS!`:'';
+    state='DUELEND'; show('duelEndScreen'); menuFocus=0; refreshFocus();
+  }
+  function duelHit(p,msg){
+    p.lives--; p.inv=DUEL_INV; lostHeartT=0.8;
+    shake(3,0.3); sfx.hurt();
+    burst(p.o.x+5,p.o.y,14,['#fff','#e8b923',TAG_COL[p.i]],60,0.5);
+    showBanner(`${p.i+1}P ${msg}`,'bad',1);
+    if(p.lives<=0){
+      p.lives=0; const w=P[1-p.i];
+      duelWin=w; duelWinT=2.6;
+      showBanner(`${w.i+1}P ${w.hero.name}\nWINS!`,'good',2.6);
+      Snd.play('win');
+    }
+  }
+  function throwStake(p){
+    const f=p.o.facing, d={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]}[f]||[1,0];
+    stakes.push({x:p.o.x+p.o.w/2+d[0]*6, y:p.o.y+p.o.h-12+d[1]*6, dx:d[0], dy:d[1], owner:p.i, car:null});
+    Snd.tone(900,0.07,{slide:300,gain:0.05});
+  }
+  function updateDuel(dt){
+    if(duelWin){
+      duelWinT-=dt;
+      if(duelWinT<=0){ HERO=duelWin.hero; showEnding(); $('endSub').textContent=`${duelWin.i+1}P ${duelWin.hero.name} WINS!`; }
+      return;
+    }
+    // heroes: walk anywhere on the road, face the way they move, A throws a stake that way
+    eachP(()=>{
+      const v=inputVec();
+      if(v.x<0) player.facing='left'; else if(v.x>0) player.facing='right';
+      else if(v.y<0) player.facing='up'; else if(v.y>0) player.facing='down';
+      player.moving=(v.x!==0||v.y!==0);
+      if(player.moving) player.animTime+=dt; else player.animTime=0;
+      player.x=clamp(player.x+v.x*player.speed*dt, 2, VIEW_W-2-player.w);
+      player.y=clamp(player.y+v.y*player.speed*dt, ROAD_TOP+2, ROAD_BOTTOM-2-player.h);
+    });
+    for(const p of P){
+      p.reload-=dt;
+      const a=!!p.held.action;
+      if(a && !p.prevAct && p.reload<=0){ throwStake(p); p.reload=STAKE_RELOAD; }
+      p.prevAct=a;
+    }
+    // traffic from both sides, slow and spaced out: top lane drives left, bottom lane drives right
+    obstacleTimer-=dt;
+    if(obstacleTimer<=0){
+      const lane=Math.random()<0.5?0:1, right=lane===1;
+      const truck=Math.random()<0.15, sprite=truck?BMP_TRUCK:CARS[(Math.random()*CARS.length)|0];
+      const y=(lane===0?ROAD_TOP:(ROAD_TOP+ROAD_BOTTOM)/2)+((ROAD_BOTTOM-ROAD_TOP)/2-sprite.h)/2;
+      obstacles.push({x:right?-sprite.w-24:VIEW_W+24, y, lane, w:sprite.w, h:sprite.h, kind:truck?'truck':'car', sprite,
+                      speed:lane?52:44, dir:right?1:-1, flip:right, honked:false});
+      obstacleTimer=3.4+Math.random()*2.6;
+    }
+    for(let i=obstacles.length-1;i>=0;i--){
+      const o=obstacles[i];
+      o.x+=o.dir*o.speed*dt;
+      if(!o.honked && o.x>-o.w && o.x<VIEW_W){ o.honked=true; if(o.kind==='truck') sfx.horn(); else sfx.honk(); }
+      if((o.dir>0 && o.x>VIEW_W+40) || (o.dir<0 && o.x+o.w<-40)){ obstacles.splice(i,1); continue; }
+      const top=0.45, hx=o.x+2, hw=o.w-4, hy=o.y+o.h*top, hh=o.h*(1-top);
+      for(const p of P){
+        const q=p.o;
+        if(p.inv<=0 && !duelWin && q.x<hx+hw && q.x+q.w>hx && q.y<hy+hh && q.y+q.h>hy) duelHit(p, o.kind==='truck'?'FLATTENED!':'HIT BY TRAFFIC!');
+      }
+    }
+    // stakes: fly straight until they leave the screen, stick in a car, or hit the other hero
+    for(let i=stakes.length-1;i>=0;i--){
+      const st=stakes[i];
+      if(st.car){
+        if(!obstacles.includes(st.car)){ stakes.splice(i,1); continue; }
+        st.x=st.car.x+st.ox; st.y=st.car.y+st.oy; continue;
+      }
+      st.x+=st.dx*STAKE_SPEED*dt; st.y+=st.dy*STAKE_SPEED*dt;
+      if(st.x<-12||st.x>VIEW_W+12||st.y<-12||st.y>VIEW_H+12){ stakes.splice(i,1); continue; }
+      const car=obstacles.find(o=>st.x>o.x+2 && st.x<o.x+o.w-2 && st.y>o.y+o.h*0.25 && st.y<o.y+o.h-1);
+      if(car){
+        st.car=car; st.ox=st.x-car.x; st.oy=st.y-car.y;
+        burst(st.x,st.y,6,['#d6b25e','#8a6a2a','#fff3c4'],35,0.35);
+        Snd.tone(180,0.06,{gain:0.06});
+        continue;
+      }
+      const tgt=P[1-st.owner], q=tgt.o, cx=q.x+q.w/2;
+      if(!duelWin && tgt.inv<=0 && st.x>cx-6 && st.x<cx+6 && st.y>q.y+q.h-22 && st.y<q.y+q.h){
+        stakes.splice(i,1); duelHit(tgt,'GOT STAKED!');
+      }
+    }
+  }
+  function drawStakes(){
+    for(const st of stakes){
+      ctx.save(); ctx.translate(Math.round(st.x), Math.round(st.y));
+      if(st.dx<0) ctx.scale(-1,1);
+      else if(st.dy<0) ctx.rotate(-Math.PI/2);
+      else if(st.dy>0) ctx.rotate(Math.PI/2);
+      drawPixelSprite(STAKE, STAKE_PAL, -6, -1, 1);
+      ctx.restore();
+    }
+  }
+  function drawDuelHud(){
+    ctx.fillStyle='#0d0b08'; ctx.fillRect(0,0,SCREEN_W,HUD_H);
+    ctx.fillStyle='#3a2f22'; ctx.fillRect(0,HUD_H-1,SCREEN_W,1);
+    P.forEach((p,k)=>{
+      const x0=k?SCREEN_W-4-DUEL_LIVES*10:26;
+      text(`${k+1}P`, k?x0-20:4, 4, {outline:false, color:TAG_COL[k]});
+      for(let i=0;i<DUEL_LIVES;i++) drawPixelSprite(HEART, i<p.lives?HEART_PAL:HEART_EMPTY_PAL, x0+i*10, 5, 1);
+    });
+    text('STAKES ONLY', SCREEN_W/2, 4, {align:'center', outline:false, color:'#e8b923'});
+  }
   function openPlayers(){
     startSound(); Snd.play('title');
     if(settings.mode!=='show' && touchOnly()){ setupPlayers(1); openDiff(); return; }
@@ -1993,6 +2139,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     menuFocus=['easy','medium','hard'].indexOf(runDiff); refreshFocus();
   }
   function goTitle(){
+    duel=false; stakes=[];
     state='TITLE'; titleSel='play'; renderTitleSel(); codeUnlocked=false; cheatPos=0;
     if(CODE_IDS.includes(HERO.id)) HERO=CREW[0];
     hideAll(); show('titleScreen');
@@ -2032,13 +2179,13 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       if(e.kind==='hero') return `<button class="cs-cell" data-i="${i}" ${at}><img src="${e.c.face}" alt="${e.c.name}"></button>`;
       if(e.kind==='empty') return `<div class="cs-cell empty" ${at}>?</div>`;
       if(e.kind==='back') return `<button class="cs-wide" data-i="${i}" ${at}>&lt; BACK TO CREW</button>`;
-      return settings.secretHeroes
+      return (settings.secretHeroes||duel)
         ? `<button class="cs-wide" data-i="${i}" ${at}>${KEY_SVG}UNLOCK SECRET HEROES</button>`
         : `<button class="cs-wide locked" data-i="${i}" ${at}>${LOCK_SVG}SECRET HEROES LOCKED</button>`;
     };
     $('csGrid').innerHTML=csEntries.map(cell).join('');
     $('csGrid').classList.toggle('tall', Math.max(...csEntries.map(e=>e.r))>=4);   // 5 rows (cheat-code heroes): smaller tiles
-    $('csHead').textContent=csView==='crew'?(coop?`PLAYER ${csPhase}: PICK YOUR HERO`:'SELECT YOUR CREW'):'SECRET HEROES';
+    $('csHead').textContent=csView==='crew'?(duel?`STAKES ONLY: PLAYER ${csPhase}`:coop?`PLAYER ${csPhase}: PICK YOUR HERO`:'SELECT YOUR CREW'):'SECRET HEROES';
     $('charScreen').classList.toggle('secret', csView==='secret');
     $('charScreen').classList.toggle('p2', coop && csPhase===2);
     $('csHelp').innerHTML=coop && settings.mode!=='show'
@@ -2056,7 +2203,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       $('csPortrait').innerHTML=`<img src="${e.c.portrait}" alt="${e.c.name}">`;
       $('csName').textContent=e.c.name; $('csLine').textContent=e.c.line;
     } else {
-      const open=e.kind==='back'||settings.secretHeroes;
+      const open=e.kind==='back'||settings.secretHeroes||duel;
       $('csPortrait').innerHTML=`<div class="cs-mystery">${e.kind==='back'?'<':open?KEY_SVG:LOCK_SVG}</div>`;
       $('csName').textContent=e.kind==='back'?'CREW':open?'SECRET':'LOCKED';
       $('csLine').textContent=e.kind==='back'?'Back to the crew.':open?'Legends of the game. Press A to meet them.':'Secret heroes are locked for this event.';
@@ -2082,7 +2229,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     const e=csEntries[csIdx];
     if(e.kind==='hero') return pickChar();
     if(e.kind==='back'){ sfx.select(); return csSetView('crew', CREW.filter(c=>!isSecret(c)).length); }
-    if(!settings.secretHeroes){
+    if(!settings.secretHeroes && !duel){
       sfx.warn(); const el=$('csGrid').querySelector('.cs-wide'); el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); return;
     }
     sfx.cover(); csSetView('secret');
@@ -2109,6 +2256,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     if(csPicked){ csPicked-=dt; if(csPicked<=0){ csPicked=0;
       if(coop && csPhase===1){ csPhase=2; openCharSelect(); return; }
       if(coop){ HERO=P[0].hero; resolveSources(); }
+      if(duel){ startDuel(); return; }
       openControls(); } return; }
     // move by grid position (columns in half-cells), rows wrap; empty slots are skipped
     const nav=csNav(), rows=Math.max(...nav.map(k=>csEntries[k].r))+1, mid=k=>csEntries[k].col+csEntries[k].span/2;
@@ -2127,6 +2275,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     if(pressed.action||pressed.start) csActivate();
     else if(pressed.back){ if(csView==='secret'){ sfx.select(); csSetView('crew', CREW.filter(c=>!isSecret(c)).length); }
       else if(coop && csPhase===2){ sfx.select(); csPhase=1; HERO=P[0].hero; openCharSelect(); }
+      else if(duel){ duelBack(); }
       else if(settings.mode==='show') openPlayers(); else openDiff(); }
   }
 
@@ -2339,7 +2488,11 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     switch(act){
       case 'briefGo': beginPlay(); break;
       case 'resume': resumeGame(); break;
-      case 'restart': startGame(0); break;
+      case 'restart': if(duel) startDuel(); else startGame(0); break;
+      case 'stakes': openDuelSelect(); break;
+      case 'duelAgain': startDuel(); break;
+      case 'duelHeroes': openDuelSelect(); break;
+      case 'duelBack': duelBack(); break;
       case 'quit': goTitle(); break;
       case 'next':
         if(tally && !tally.done) return;
@@ -2715,9 +2868,11 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
         updateControls(dt); break;
       case 'ENDING':
         endT+=dt;
-        if(endT>1.2 && (pressed.action||pressed.start||pressed.back)) { sfx.select(); showResults(true); }
-        else if(endT>12) showResults(true);
+        if(endT>1.2 && (pressed.action||pressed.start||pressed.back)) { sfx.select(); if(duel) openDuelEnd(); else showResults(true); }
+        else if(endT>12){ if(duel) openDuelEnd(); else showResults(true); }
         break;
+      case 'DUELEND':
+        menuNav(); if(pressed.back) duelBack(); break;
       case 'ADMIN':
         menuNav(); if(pressed.back){ sfx.select(); closeAdmin(); } break;
       case 'BRIEFING': case 'PAUSED': case 'BOARD': case 'HOWTO':
@@ -2736,6 +2891,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       case 'PLAYING':
         if(coop) P.forEach(p=>{ if(p.inv>0) p.inv-=dt; });
         else if(invulnTimer>0) invulnTimer-=dt;
+        if(duel){ updateDuel(dt); break; }
         if(lvl.type==='road'){
           rainProgress+=dt/lvl.duration;
           if(lvl.dir==='up') updateUphill(dt,lvl); else updateRoad(dt,lvl);
@@ -3005,7 +3161,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   }
   $('testToggleBtn').addEventListener('click', e=>{ e.stopPropagation(); openPin('unlock'); });
   document.querySelectorAll('.title-opt').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); if(state!=='TITLE') return; Snd.unlock(); titleSel=b.dataset.title; renderTitleSel(); titleChoose(titleSel); }));
-  $('endScreen').addEventListener('click', ()=>{ if(state==='ENDING' && endT>1.2) showResults(true); });
+  $('endScreen').addEventListener('click', ()=>{ if(state==='ENDING' && endT>1.2){ if(duel) openDuelEnd(); else showResults(true); } });
   $('titleScreen').addEventListener('click', ()=>{ if(state==='TITLE'){ Snd.unlock(); if(document.body.classList.contains('touch-mode') && !FRAME_BLOCKS_FS) enterFullscreen(); sfx.select(); titleChoose('play'); } });
   // Conference leads: RESET only after the current list has been exported, then confirm.
   let clearArmed=false, clearArmTimer=null;
@@ -3390,13 +3546,13 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       }
     }
     // traffic and the hero, drawn back to front so whoever is lower on screen is in front
-    const warn=obstacles.filter(o=>o.x>VIEW_W);
+    const warn=obstacles.filter(o=>o.x>VIEW_W || o.x+o.w<0);
     for(const o of warn){
       if(Math.floor(gameTime*10)%2===0){   // incoming warning at the right edge
-        const wy=Math.round(o.y+o.h*0.6-5);
-        ctx.fillStyle='#0d0b08'; ctx.fillRect(VIEW_W-12,wy-1,10,12);
-        ctx.fillStyle=o.kind==='truck'?'#ef6420':'#e8b923'; ctx.fillRect(VIEW_W-11,wy,8,10);
-        drawPixelSprite(BANG,{r:'#0d0b08'},VIEW_W-9,wy+2,1);
+        const wy=Math.round(o.y+o.h*0.6-5), ex=o.x>VIEW_W?VIEW_W-12:2;
+        ctx.fillStyle='#0d0b08'; ctx.fillRect(ex,wy-1,10,12);
+        ctx.fillStyle=o.kind==='truck'?'#ef6420':'#e8b923'; ctx.fillRect(ex+1,wy,8,10);
+        drawPixelSprite(BANG,{r:'#0d0b08'},ex+3,wy+2,1);
       }
     }
     const items=obstacles.filter(o=>o.x<=VIEW_W).map(o=>({bottom:o.y+o.h, o}));
@@ -3409,9 +3565,11 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       if(o.kind!=='bike'){
         const hy=oy+o.h*0.62;
         ctx.fillStyle='rgba(255,240,170,.18)';
-        ctx.beginPath(); ctx.moveTo(ox+2,hy-2); ctx.lineTo(ox-26,hy-7); ctx.lineTo(ox-26,hy+6); ctx.lineTo(ox+2,hy+2); ctx.fill();
+        if(o.flip){ ctx.beginPath(); ctx.moveTo(ox+o.w-2,hy-2); ctx.lineTo(ox+o.w+26,hy-7); ctx.lineTo(ox+o.w+26,hy+6); ctx.lineTo(ox+o.w-2,hy+2); ctx.fill(); }
+        else { ctx.beginPath(); ctx.moveTo(ox+2,hy-2); ctx.lineTo(ox-26,hy-7); ctx.lineTo(ox-26,hy+6); ctx.lineTo(ox+2,hy+2); ctx.fill(); }
       }
-      ctx.drawImage(o.sprite.img, ox, oy, o.w, o.h);   // vehicle sprites face left, the way traffic drives
+      if(o.flip){ ctx.save(); ctx.scale(-1,1); ctx.drawImage(o.sprite.img, -(ox+o.w), oy, o.w, o.h); ctx.restore(); }   // Stakes Only: right-bound traffic
+      else ctx.drawImage(o.sprite.img, ox, oy, o.w, o.h);   // vehicle sprites face left, the way traffic drives
     }
   }
 
@@ -3886,6 +4044,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   }
 
   function drawHud(lvl){
+    if(duel){ drawDuelHud(); return; }
     ctx.fillStyle='#0d0b08'; ctx.fillRect(0,0,SCREEN_W,HUD_H);
     ctx.fillStyle='#3a2f22'; ctx.fillRect(0,HUD_H-1,SCREEN_W,1);
     text('SITE',4,4,{color:'#e8b923',outline:false});
@@ -3929,6 +4088,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     else if(lvl.type==='road') drawRoad();
     else if(lvl.type==='curtain') withDriver(()=>drawCurtain(lvl));
     else drawYard();
+    if(duel) drawStakes();
     drawFX();
     drawWeather();
     ctx.restore();
@@ -4005,7 +4165,8 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     get units(){ return erosionTiles.filter(t=>t.state==='active').map(t=>({col:t.col,row:t.row,w:t.w,h:t.h,timer:t.timer})); },
     get grid(){ return grid; },
     get siteHits(){ return siteStats.hits; },
-    get crew(){ return HERO.id; }, get coop(){ return coop?P.map(p=>({hero:p.hero.id, src:p.src, x:p.o.x, y:p.o.y, inv:p.inv})):null; }, get csPhase(){ return csPhase; }, get audioRunning(){ return Snd.running; }, get audio(){ return {gains:Snd.gains, song:Snd.current}; }, qaCoop(n){ setupPlayers(n); if(coop){ P[0].src='pad0'; P[1].src='pad1'; P[1].hero=CREW[1]; } }, get bikes(){ return obstacles.filter(o=>o.kind==="bike").map(o=>Math.round(o.x)); }, get mode(){ return settings.mode; },
+    get crew(){ return HERO.id; }, get coop(){ return coop?P.map(p=>({hero:p.hero.id, src:p.src, x:p.o.x, y:p.o.y, inv:p.inv})):null; }, get csPhase(){ return csPhase; }, get audioRunning(){ return Snd.running; }, get duel(){ return duel?{lives:P.map(p=>p.lives), stakes:stakes.length, stuck:stakes.filter(s=>s.car).length, cars:obstacles.length, win:duelWin&&duelWin.i, pos:P.map(p=>[Math.round(p.o.x),Math.round(p.o.y),p.o.facing])}:null; },
+    duelPlace(i,x,y,f){ Object.assign(P[i].o,{x,y,facing:f}); }, get audio(){ return {gains:Snd.gains, song:Snd.current}; }, qaCoop(n){ setupPlayers(n); if(coop){ P[0].src='pad0'; P[1].src='pad1'; P[1].hero=CREW[1]; } }, get bikes(){ return obstacles.filter(o=>o.kind==="bike").map(o=>Math.round(o.x)); }, get mode(){ return settings.mode; },
     isBadName(n){ return isBadName(n); },
     get banner(){ return banner&&banner.text; }, get cars(){ return obstacles.map(o=>({x:o.x,y:o.y,w:o.w,h:o.h,dir:o.dir})); }, get basins(){ return basins.map(b=>({x:b.x,y:b.y,side:b.side,state:b.state,fill:b.fill})); }, get hero(){ return {x:player.x, y:player.y, laying:player.laying, dir:player.layDir}; }
   };
