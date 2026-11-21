@@ -334,6 +334,7 @@
   .cs-line{ font-size:calc(var(--u)*6); line-height:1.7; color:#dfe8ff; text-align:center; min-height:3.4em; }
   .cs-right{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:calc(var(--u)*6); }
   .cs-grid{ --cs:38; display:grid; grid-template-columns:repeat(6, calc(var(--u)*(var(--cs) - 4) / 2)); gap:calc(var(--u)*4); }
+  .cs-grid.tall{ --cs:30; }
   .cs-cell{ position:relative; width:calc(var(--u)*var(--cs)); height:calc(var(--u)*var(--cs)); background:#6f8fe0; border:calc(var(--u)*1) solid #c9dcff; box-shadow:0 0 0 calc(var(--u)*1) var(--ink); cursor:pointer; padding:0; }
   .cs-cell img{ width:100%; height:100%; image-rendering:pixelated; display:block; }
   .cs-cell.sel{ outline:calc(var(--u)*2) solid #ff3a1a; outline-offset:calc(var(--u)*1); animation:csBlink .5s steps(1) infinite; }
@@ -1979,7 +1980,7 @@
   const SECRET_IDS=['mike','wayne','oprah','donald','taylor','doug','hogan','tiger','dolly'], SECRET_SLOTS=9, CS_COLS=3;
   // Cheat-code heroes: hidden from the Secret Heroes page until UP UP DOWN DOWN LEFT RIGHT LEFT RIGHT is entered
   // there. They lock again when the game returns to the title, so the next player doesn't see them.
-  const CODE_IDS=['ralph','chief','rosie'], CHEAT=['up','up','down','down','left','right','left','right'];
+  const CODE_IDS=['ralph','chief','rosie','jim'], CHEAT=['up','up','down','down','left','right','left','right'];
   let codeUnlocked=false, cheatPos=0;
   const KEY_SVG='<svg class="cs-ico" viewBox="0 0 12 7" shape-rendering="crispEdges"><path fill="#ffd23a" d="M1 1h4v1h1v1h6v2h-1v1h-1v-1h-1v1h-1v-1h-3v1h-1v1h-4v-1h-1v-4h1z"/><path class="hole" fill="#1d2f8a" d="M2 3h2v2h-2z"/><path fill="#fff3c4" d="M1 1h4v1h-4z"/></svg>';
   const LOCK_SVG='<svg class="cs-ico" viewBox="0 0 8 9" shape-rendering="crispEdges"><path fill="#9aa6c8" d="M2 0h4v1h1v3h-1v-3h-4v3h-1v-3h1z"/><path fill="#c9ced8" d="M0 4h8v5h-8z"/><path fill="#5a6280" d="M3 5h2v2h-1v1h-1z"/></svg>';
@@ -1987,7 +1988,7 @@
   const isSecret=c=>SECRET_IDS.includes(c.id)||CODE_IDS.includes(c.id);
   function csBuildEntries(){
     const heroes=csView==='crew' ? CREW.filter(c=>!isSecret(c)) : SECRET_IDS.map(id=>crewById(id)).filter(Boolean);
-    const slots=SECRET_SLOTS+(codeUnlocked?CS_COLS:0);
+    const slots=SECRET_SLOTS+(codeUnlocked?Math.ceil(CODE_IDS.length/CS_COLS)*CS_COLS:0);
     const at=i=>({r:Math.floor(i/CS_COLS), col:(i%CS_COLS)*2, span:2});
     const e=heroes.map((c,i)=>Object.assign({kind:'hero', c}, at(i)));
     if(csView==='secret'){
@@ -2011,6 +2012,7 @@
         : `<button class="cs-wide locked" data-i="${i}" ${at}>${LOCK_SVG}SECRET HEROES LOCKED</button>`;
     };
     $('csGrid').innerHTML=csEntries.map(cell).join('');
+    $('csGrid').classList.toggle('tall', Math.max(...csEntries.map(e=>e.r))>=4);   // 5 rows (cheat-code heroes): smaller tiles
     $('csHead').textContent=csView==='crew'?(coop?`PLAYER ${csPhase}: PICK YOUR HERO`:'SELECT YOUR CREW'):'SECRET HEROES';
     $('charScreen').classList.toggle('secret', csView==='secret');
     $('charScreen').classList.toggle('p2', coop && csPhase===2);
