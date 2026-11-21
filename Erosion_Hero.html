@@ -386,6 +386,7 @@
   .cs-cell.sel1.sel2, .cs-wide.sel1.sel2{ outline-offset:calc(var(--u)*4); }
   .cs-cell.lock1, .cs-cell.lock2{ animation:none; }
   .cs-cell.lock1::after{ background:#5ac24a; } .cs-cell.lock2::before{ background:#5ac24a; }
+  .lb li .face-gone{ display:inline-flex; align-items:center; justify-content:center; vertical-align:middle; box-sizing:border-box; background:#2a2f55; color:#9aa6c8; font-size:calc(var(--u)*6); line-height:1; }
   .lb li .face2{ margin-left:calc(var(--u)*-2); }   /* 2-player rows: two faces side by side, 1px apart, no overlap */
   @keyframes csBlink{ 50%{ outline-color:#fff3c4; } }
   .cs-help{ font-size:calc(var(--u)*6); color:#dfe8ff; }
@@ -1607,10 +1608,16 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
+  // a hero who has since left the game (e.g. Leia) still gets a tile, a "?", so team rows always show two faces
+  function boardFace(id, cls){
+    if(!id) return '';
+    const c=crewById(id);
+    return c ? `<img class="face${cls}" src="${c.face}" alt="">` : `<span class="face face-gone${cls}">?</span>`;
+  }
   function boardHtml(list, highlightId, start){
     start=start||0;
     if(!list.length) return '<li class="lb-empty" style="display:block;text-align:center">NO SCORES YET &mdash; BE THE FIRST!</li>';
-    return list.map((r,i)=>`<li class="${r.id!=null&&r.id===highlightId?'me':''}"><span class="rk">${String(start+i+1).padStart(2,' ')}</span><span class="who${r.company?' wrap':''}">${crewById(r.crew)?`<img class="face" src="${crewById(r.crew).face}" alt="">`:''}${crewById(r.crew2)?`<img class="face face2" src="${crewById(r.crew2).face}" alt="">`:''}${escapeHtml(r.name||'ANONYMOUS')}${settings.mode!=='show'?`<span class="dtag d${(r.difficulty||'M')}">${escapeHtml(r.difficulty||'M')}</span>`:''}${r.company?`<span class="co"> - ${escapeHtml(r.company)}</span>`:''}</span><span class="sc">${r.score}</span></li>`).join('');
+    return list.map((r,i)=>`<li class="${r.id!=null&&r.id===highlightId?'me':''}"><span class="rk">${String(start+i+1).padStart(2,' ')}</span><span class="who${r.company?' wrap':''}">${boardFace(r.crew,'')}${boardFace(r.crew2,' face2')}${escapeHtml(r.name||'ANONYMOUS')}${settings.mode!=='show'?`<span class="dtag d${(r.difficulty||'M')}">${escapeHtml(r.difficulty||'M')}</span>`:''}${r.company?`<span class="co"> - ${escapeHtml(r.company)}</span>`:''}</span><span class="sc">${r.score}</span></li>`).join('');
   }
 
   // =====================================================================
