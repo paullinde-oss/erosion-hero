@@ -63,7 +63,7 @@ One-time Firebase setup for online deletes:
 A just-for-fun mode for BMP Supplies staff. Open the operator menu (helmet, PIN) and choose **STAKES ONLY → PLAY**.
 - Both players pick at the same time (same as 2-player mode). Every hero is unlocked, cheat-code heroes included, and the two must be different.
 - The arena is Main Street with the street frozen: no drains, no Inspector. Cars and BMP trucks drive slowly from both sides (top lane right-to-left, bottom lane left-to-right).
-- D-pad (or WASD / arrows) moves. **A** (or Space / `/`) throws a blanket stake the way you're facing, with a short reload between throws.
+- D-pad (or WASD / arrows) moves. **A** (or Space / `/`) throws a blanket stake the way you're facing. After each throw, a reload bar under your hero fills over about 1.2 s and flashes green with a click when ready. Pressing early does nothing, so time your shots.
 - 5 hearts each. A stake hit or a car costs one heart, followed by a short blink when you can't be hit. Cars block stakes, which stick in them.
 - Last player standing wins: a "WINS!" pop-up, then the winner's Job Well Done bar scene, then REMATCH / NEW HEROES / BACK (to the operator menu). Nothing is saved to a leaderboard.
 

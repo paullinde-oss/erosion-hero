@@ -1727,7 +1727,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   const TAG_COL=['#ff3a1a','#3a8dff'];
   let P=[], curP=null, csPhase=1;
   // STAKES ONLY (secret 2-player duel from the operator menu): frozen Main Street, throw stakes, dodge traffic
-  const DUEL_LIVES=5, STAKE_SPEED=170, STAKE_RELOAD=0.55, DUEL_INV=1.5;
+  const DUEL_LIVES=5, STAKE_SPEED=170, STAKE_RELOAD=1.2, DUEL_INV=1.5;   // reload: one well-timed throw, not rapid fire
   let duel=false, stakes=[], duelWin=null, duelWinT=0;
   // erosion-control blanket stake (pointing right): notched head at the back, long tapered leg
   const STAKE=['tttttttttttk','tddddddkk...','dk..........'];
@@ -2073,9 +2073,14 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       player.y=clamp(player.y+v.y*player.speed*dt, ROAD_TOP+2, ROAD_BOTTOM-2-player.h);
     });
     for(const p of P){
-      p.reload-=dt;
+      const was=p.reload; p.reload-=dt;
+      if(was>0 && p.reload<=0){ p.readyFlash=0.35; Snd.tone(1320,0.04,{gain:0.04}); }   // reloaded: flash + click
+      if(p.readyFlash>0) p.readyFlash-=dt;
       const a=!!p.held.action;
-      if(a && !p.prevAct && p.reload<=0){ throwStake(p); p.reload=STAKE_RELOAD; }
+      if(a && !p.prevAct){
+        if(p.reload<=0){ throwStake(p); p.reload=STAKE_RELOAD; }
+        else Snd.tone(140,0.04,{gain:0.03});   // still reloading: dull click, nothing thrown
+      }
       p.prevAct=a;
     }
     // traffic from both sides, slow and spaced out: top lane drives left, bottom lane drives right
@@ -2121,7 +2126,19 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       }
     }
   }
+  // reload bar under each hero: fills while reloading, flashes green when the next stake is ready
+  function drawReloadBars(){
+    for(const p of P){
+      const o=p.o, w=16, x=Math.round(o.x+o.w/2-w/2), y=Math.round(o.y+o.h+2);
+      const f=clamp(1-Math.max(0,p.reload)/STAKE_RELOAD,0,1), ready=f>=1;
+      ctx.fillStyle='#0d0b08'; ctx.fillRect(x-1,y-1,w+2,4);
+      ctx.fillStyle='#3a2f22'; ctx.fillRect(x,y,w,2);
+      ctx.fillStyle=ready?(p.readyFlash>0 && Math.floor(p.readyFlash*20)%2?'#fff3c4':'#5ac24a'):'#e8b923';
+      ctx.fillRect(x,y,Math.round(w*f),2);
+    }
+  }
   function drawStakes(){
+    if(!duelWin) drawReloadBars();
     for(const st of stakes){
       ctx.save(); ctx.translate(Math.round(st.x), Math.round(st.y));
       if(st.dx<0) ctx.scale(-1,1);
