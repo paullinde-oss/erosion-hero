@@ -187,10 +187,6 @@
   .howto b{ color:var(--hazard); font-weight:normal; }
   .keycap{ display:inline-block; border:calc(var(--u)*1) solid var(--muted); padding:calc(var(--u)*1) calc(var(--u)*2); color:var(--paper); }
 
-  .snd-hint{ font-size:calc(var(--u)*5); color:var(--paper); background:rgba(13,11,8,.75); padding:calc(var(--u)*2) calc(var(--u)*4); }
-  .snd-hint.hidden{ display:none; }
-  .snd-opt{ display:flex; align-items:center; gap:calc(var(--u)*3); }
-  .snd-opt svg{ width:calc(var(--u)*8); height:calc(var(--u)*7); }
   /* the helmet (operator menu) can be picked with a controller: it lights up when selected */
   .test-toggle.sel{ color:var(--hazard); outline:calc(var(--u)*1) solid var(--hazard); outline-offset:calc(var(--u)*0.5); }
   .test-toggle{
@@ -474,9 +470,7 @@
       <button class="title-opt sel" data-title="play"><span class="press-start blink">PRESS START</span></button>
       <div class="title-row">
         <button class="title-opt" data-title="board">LEADERBOARD</button>
-        <button class="title-opt snd-opt" data-title="sound" id="titleSoundBtn" aria-label="Sound on/off"><svg viewBox="0 0 16 14" shape-rendering="crispEdges"></svg><span>ON</span></button>
       </div>
-      <div class="snd-hint hidden" id="sndHint">Press any key or click for sound</div>
     </div>
     <button class="fs-btn" id="fsBtn">FULL SCREEN</button>
     <div class="fs-hint">For full screen on iPhone: Share &rsaquo; Add to Home Screen</div>
@@ -801,18 +795,18 @@
   // One switch for players: SOUND turns music and sound effects on or off together
   // (pause menu, the speaker on the title screen, or the M key). The operator menu still sets them separately.
   const soundOn=()=>settings.music||settings.sfx;
+  // Sound starts when a player starts a game (PRESS START / PLAY AGAIN / operator site jump), never on the title.
+  let titleQuiet=true;
+  function startSound(){ if(titleQuiet){ titleQuiet=false; applySettings(); } Snd.unlock(); }
   const soundBlocked=()=>soundOn() && !Snd.running;
   function toggleSound(){
-    if(soundBlocked()){ Snd.unlock(); $('sndHint').classList.remove('hidden'); return; }   // first press just starts the sound
+    if(soundBlocked()){ Snd.unlock(); return; }   // first press just starts the sound
     if(performance.now()-audioStartedAt<500) return;   // this same press is what just started it
     const on=!soundOn(); settings.music=on; settings.sfx=on; saveSettings(); applySettings(); if(on){ Snd.unlock(); sfx.select(); } }
   function applySettings(){
     Snd.setVolumes();
     const heard=soundOn() && Snd.running;
     $('pauseSoundBtn').textContent='SOUND: '+(heard?'ON':'OFF');
-    if(heard) $('sndHint').classList.add('hidden');
-    $('titleSoundBtn').querySelector('span').textContent=heard?'ON':'OFF';
-    $('titleSoundBtn').querySelector('svg').innerHTML=heard?'<path fill="currentColor" d="M1 4h3l4-3v12l-4-3h-3z"/><path fill="currentColor" d="M10 4h1v1h1v4h-1v1h-1v-1h1v-4h-1zM12 2h1v1h1v1h1v6h-1v1h-1v1h-1v-1h1v-1h1v-6h-1v-1h-1z"/>':'<path fill="currentColor" d="M1 4h3l4-3v12l-4-3h-3z"/><path fill="currentColor" d="M10 4h1v1h1v1h1v-1h1v-1h1v1h-1v1h-1v1h1v1h1v1h-1v-1h-1v-1h-1v1h-1v1h-1v-1h1v-1h1v-1h-1v-1h-1z"/>';
     document.querySelectorAll('[data-act="toggle"]').forEach(b=>{ b.textContent=settings[b.dataset.key]?(b.dataset.key==='secretHeroes'?'UNLOCKED':'ON'):(b.dataset.key==='secretHeroes'?'LOCKED':'OFF'); });
     $('modeBtn').textContent=settings.mode==='show'?'CONFERENCE':'PUBLIC';
     $('modeBadge').classList.toggle('hidden', settings.mode!=='show');
@@ -1131,8 +1125,8 @@
     }
     function setVolumes(){
       if(!ac) return;
-      musicBus.gain.value=settings.music?0.55:0;
-      sfxBus.gain.value=settings.sfx?1:0;
+      musicBus.gain.value=settings.music && !titleQuiet?0.55:0;   // the title screen is silent
+      sfxBus.gain.value=settings.sfx && !titleQuiet?1:0;
     }
     function unlock(){
       if(!ensure()) return;
@@ -1206,7 +1200,8 @@
       }
     }
     return {unlock, play, stop, update, tone, noise, setVolumes, setTempo, get current(){ return songName; },
-            get running(){ return !!ac && ac.state==='running'; }};
+            get running(){ return !!ac && ac.state==='running'; },
+            get gains(){ return musicBus?[musicBus.gain.value, sfxBus.gain.value]:null; }};
   })();
 
   const sfx={
@@ -1855,13 +1850,13 @@
   function titleChoose(what){
     sfx.select();
     if(what==='howto'){ state='HOWTO'; show('howScreen'); }
-    else if(what==='sound'){ toggleSound(); }
     else if(what==='admin'){ openPin('unlock'); }
     else if(what==='board'){ showBoard(null, true); }
     else openPlayers();
   }
   const touchOnly=()=>document.body.classList.contains('touch-mode');
   function openPlayers(){
+    startSound(); Snd.play('title');
     if(settings.mode!=='show' && touchOnly()){ setupPlayers(1); openDiff(); return; }
     $('p2Line').textContent=settings.mode==='show'?'Team up \u00b7 share hearts':'Share a keyboard or use 2 controllers';
     state='PLAYERS'; show('playersScreen');
@@ -1977,7 +1972,7 @@
     hideAll(); show('titleScreen');
     attractIdx=0; attractT=0; setAttract(0);
     refreshTitleScores();
-    Snd.play('title');
+    titleQuiet=true; Snd.stop(); applySettings();
   }
   // ---------- character select ----------
   // Main crew on the first page; guest stars behind "UNLOCK SECRET HEROES" (operator menu can lock them).
@@ -2131,6 +2126,7 @@
   function closePadSetup(){ padSetup=null; padMute=true; state='ADMIN'; show('adminScreen'); applySettings(); }
 
   function startGame(siteIdx){
+    startSound();
     applyDifficulty();
     score=0; displayScore=0; lives=maxLives(); curtainAccuracy=null; curtainAccs=[];
     levelIdx=siteIdx||0;
@@ -2655,7 +2651,7 @@
         if(pressed.start){ titleChoose('play'); return; }
         if(rep.up||rep.left||rep.down||rep.right){
           // PRESS START on top; LEADERBOARD, SOUND and the helmet (operator menu) in a row below
-          const row=['board','sound','admin'];
+          const row=['board','admin'];
           let i=row.indexOf(titleSel), next=titleSel;
           if(titleSel==='play'){ if(rep.down||rep.right) next='board'; }
           else if(rep.up) next='play';
@@ -3966,7 +3962,7 @@
     get units(){ return erosionTiles.filter(t=>t.state==='active').map(t=>({col:t.col,row:t.row,w:t.w,h:t.h,timer:t.timer})); },
     get grid(){ return grid; },
     get siteHits(){ return siteStats.hits; },
-    get crew(){ return HERO.id; }, get coop(){ return coop?P.map(p=>({hero:p.hero.id, src:p.src, x:p.o.x, y:p.o.y, inv:p.inv})):null; }, get csPhase(){ return csPhase; }, get audioRunning(){ return Snd.running; }, qaCoop(n){ setupPlayers(n); if(coop){ P[0].src='pad0'; P[1].src='pad1'; P[1].hero=CREW[1]; } }, get bikes(){ return obstacles.filter(o=>o.kind==="bike").map(o=>Math.round(o.x)); }, get mode(){ return settings.mode; },
+    get crew(){ return HERO.id; }, get coop(){ return coop?P.map(p=>({hero:p.hero.id, src:p.src, x:p.o.x, y:p.o.y, inv:p.inv})):null; }, get csPhase(){ return csPhase; }, get audioRunning(){ return Snd.running; }, get audio(){ return {gains:Snd.gains, song:Snd.current}; }, qaCoop(n){ setupPlayers(n); if(coop){ P[0].src='pad0'; P[1].src='pad1'; P[1].hero=CREW[1]; } }, get bikes(){ return obstacles.filter(o=>o.kind==="bike").map(o=>Math.round(o.x)); }, get mode(){ return settings.mode; },
     isBadName(n){ return isBadName(n); },
     get banner(){ return banner&&banner.text; }, get cars(){ return obstacles.map(o=>({x:o.x,y:o.y,w:o.w,h:o.h,dir:o.dir})); }, get basins(){ return basins.map(b=>({x:b.x,y:b.y,side:b.side,state:b.state,fill:b.fill})); }, get hero(){ return {x:player.x, y:player.y, laying:player.laying, dir:player.layDir}; }
   };

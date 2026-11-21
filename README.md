@@ -22,8 +22,8 @@ PRESS START plays. HOW TO PLAY and LEADERBOARD are below it (joystick down/left/
 
 ## Operator menu (PIN protected)
 - Open it with the small hard-hat icon (bottom right of the title) or the backtick key `` ` ``. It asks for the operator PIN: **123** by default. Enter it with UP/DOWN + A on a controller, by typing, or on the on-screen keypad. Change it in the menu under OPERATOR PIN.
-- Players can turn all sound on/off from the pause menu (SOUND), the speaker button next to LEADERBOARD on the title screen, or the M key.
-- Everything works without a mouse: on the title screen, move down to LEADERBOARD / SOUND / the helmet (operator menu) with the D-pad or arrows and press A. PIN digits: UP/DOWN to change, A for the next digit. B closes the operator menu.
+- The title screen is silent. Sound starts when a player hits PRESS START. Players can turn it off during a game from the pause menu (SOUND) or with the M key. The operator menu has separate MUSIC and SOUND FX switches.
+- Everything works without a mouse: on the title screen, move down to LEADERBOARD / the helmet (operator menu) with the D-pad or arrows and press A. PIN digits: UP/DOWN to change, A for the next digit. B closes the operator menu.
 - Inside: jump to any site, event mode, controller setup, secret heroes, music/SFX/idle reset, fullscreen, PIN, and conference leads.
 - **F**: fullscreen. **M**: music on/off.
 - **Idle reset:** title-screen menus return to the title after 30s with no input; a game in progress after 60s; screens in the middle of a run (site briefings, tallies, ending, name entry) after 90s.
@@ -61,7 +61,7 @@ After PRESS START, players pick from the six-person crew (Daryl, Sheryl, Marcus,
 - Before the doors open, tap the screen once after loading so the browser allows sound. Then turn off auto-lock/screen sleep, and lock the tablet to the game (Android: App Pinning; iPad: Guided Access).
 
 ## Kiosk setup (recommended)
-Browsers block sound until someone clicks, taps or presses a key on the page. **Game controller buttons don't count.** At a controller-only booth, launch Chrome in kiosk mode with the flag below so the music plays from launch (or press any key on the laptop once after opening the game). Without it, the title's SOUND button reads OFF and shows "Press any key or click for sound" until that first key or click.
+Browsers block sound until someone clicks, taps or presses a key on the page. **Game controller buttons don't count.** At a controller-only booth, launch Chrome in kiosk mode with the flag below so the music plays from launch (or press any key on the laptop once after opening the game). Without it, a game started with only a controller stays silent until someone presses a key or clicks.
 
 ```
 chrome --kiosk --autoplay-policy=no-user-gesture-required "file:///path/to/Erosion_Hero.html"
