@@ -366,6 +366,26 @@
   .cs-cell.taken img{ opacity:.35; filter:grayscale(1); }
   .cs-cell.taken::before{ content:'1P'; position:absolute; bottom:0; right:0; font-size:calc(var(--u)*7); line-height:1; padding:calc(var(--u)*1.5) calc(var(--u)*2); background:#ff3a1a; color:#fff; }
   .cs-cell.shake{ animation:csShake .3s; }
+  /* 2 players pick at the same time: red 1P cursor, blue 2P cursor, each on its own controller */
+  #charScreen.duo .cs-portrait, #charScreen.duo .cs-name, #charScreen.duo .cs-line{ display:none; }
+  .cs-duo{ display:none; flex-direction:column; gap:calc(var(--u)*4); width:100%; }
+  #charScreen.duo .cs-duo{ display:flex; }
+  .duo-card{ display:flex; align-items:center; gap:calc(var(--u)*4); padding:calc(var(--u)*2); border:calc(var(--u)*1.5) solid; background:rgba(0,0,0,.25); }
+  .duo-card.k0{ border-color:#ff3a1a; } .duo-card.k1{ border-color:#3a8dff; }
+  .duo-por{ flex:0 0 calc(var(--u)*46); height:calc(var(--u)*46); background:radial-gradient(circle at 50% 40%,#3a5ad8 0%,#1d2f8a 70%); display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
+  .duo-por img{ width:100%; height:100%; image-rendering:pixelated; }
+  .duo-por .cs-mystery{ font-size:calc(var(--u)*20); } .duo-por .cs-ico{ width:calc(var(--u)*26); height:calc(var(--u)*20); }
+  .duo-info{ display:flex; flex-direction:column; gap:calc(var(--u)*3); text-align:left; min-width:0; }
+  .duo-tag{ font-size:calc(var(--u)*6); } .duo-card.k0 .duo-tag{ color:#ff6a4a; } .duo-card.k1 .duo-tag{ color:#6aa8ff; }
+  .duo-name{ font-size:calc(var(--u)*9); color:#fff3c4; white-space:nowrap; }
+  .duo-state{ font-size:calc(var(--u)*5); color:#dfe8ff; } .duo-state.ready{ color:#5ac24a; }
+  .cs-cell.sel1, .cs-wide.sel1{ outline:calc(var(--u)*2) solid #ff3a1a; outline-offset:calc(var(--u)*1); animation:csBlink .5s steps(1) infinite; }
+  .cs-cell.sel1::after{ content:'1P'; position:absolute; top:0; left:0; font-size:calc(var(--u)*7); line-height:1; padding:calc(var(--u)*1.5) calc(var(--u)*2); background:#ff3a1a; color:#fff; }
+  .cs-cell.sel2, .cs-wide.sel2{ box-shadow:0 0 0 calc(var(--u)*1) var(--ink), 0 0 0 calc(var(--u)*3) #3a8dff; }
+  .cs-cell.sel2::before{ content:'2P'; position:absolute; top:0; right:0; z-index:1; font-size:calc(var(--u)*7); line-height:1; padding:calc(var(--u)*1.5) calc(var(--u)*2); background:#3a8dff; color:#fff; }
+  .cs-cell.sel1.sel2, .cs-wide.sel1.sel2{ outline-offset:calc(var(--u)*4); }
+  .cs-cell.lock1, .cs-cell.lock2{ animation:none; }
+  .cs-cell.lock1::after{ background:#5ac24a; } .cs-cell.lock2::before{ background:#5ac24a; }
   .lb li .face2{ margin-left:calc(var(--u)*-2); }   /* 2-player rows: two faces side by side, 1px apart, no overlap */
   @keyframes csBlink{ 50%{ outline-color:#fff3c4; } }
   .cs-help{ font-size:calc(var(--u)*6); color:#dfe8ff; }
@@ -495,6 +515,7 @@
         <div class="cs-portrait" id="csPortrait"></div>
         <div class="cs-name" id="csName">DARYL</div>
         <div class="cs-line" id="csLine"></div>
+        <div class="cs-duo" id="csDuo"></div>
       </div>
       <div class="cs-right">
         <div class="cs-grid" id="csGrid"></div>
@@ -1277,7 +1298,8 @@
     Space:['kbB','action'],KeyQ:['kbB','action'],KeyE:['kbB','action'],ShiftLeft:['kbB','action'],ControlLeft:['kbB','action'],AltLeft:['kbB','action'],KeyZ:['kbB','action'],KeyX:['kbB','action'],Digit1:['kbB','start']};
   const kbCodes={}, srcHeld={}, padPrevAny={};
   let lastSrc=null;
-  window.addEventListener('keydown', e=>{ if(KB_SRC[e.code]){ kbCodes[e.code]=true; if(!e.repeat) lastSrc=KB_SRC[e.code][0]; } }, true);
+  const kbCodeLatch={};
+  window.addEventListener('keydown', e=>{ if(KB_SRC[e.code]){ kbCodes[e.code]=true; if(!e.repeat){ kbCodeLatch[e.code]=true; lastSrc=KB_SRC[e.code][0]; } } }, true);
   window.addEventListener('keyup', e=>{ kbCodes[e.code]=false; }, true);
   window.addEventListener('blur', ()=>{ for(const k in kbCodes) kbCodes[k]=false; });
   window.addEventListener('keydown', e=>{
@@ -1354,9 +1376,11 @@
     }
     for(const k of ['kbA','kbB']){
       const h=srcHeld[k]={};
-      for(const c in KB_SRC) if(kbCodes[c] && KB_SRC[c][0]===k) h[KB_SRC[c][1]]=true;
+      for(const c in KB_SRC) if((kbCodes[c]||kbCodeLatch[c]) && KB_SRC[c][0]===k) h[KB_SRC[c][1]]=true;
     }
-    if(coop) for(const p of P){ const h=srcHeld[p.src]||{};
+    for(const c in kbCodeLatch) kbCodeLatch[c]=false;
+    srcHeld.kb={}; for(const k of ['kbA','kbB']) for(const b in srcHeld[k]) if(srcHeld[k][b]) srcHeld.kb[b]=true;
+    if(coop) for(const p of P){ const h=srcHeld[p.src]||{}; p.raw=h;
       p.held={up:!!h.up, down:!!h.down, left:!!h.left, right:!!h.right, action:!!(h.action||h.back)}; }   // B lays too
   }
   // IN = the controls steering the hero being updated: the merged input solo, that player's own controller in 2P
@@ -1606,7 +1630,8 @@
   const STAKE_PAL={t:'#d6b25e', d:'#8a6a2a', k:'#2a1d0e'};
   function setupPlayers(n){
     coop=n===2; csPhase=1;
-    P=coop?[0,1].map(i=>({i, o:i===0?player:Object.assign({},player), hero:HERO, inv:0, out:false, seen:0, alert:false, src:null, held:{}})):[];
+    P=coop?[0,1].map(i=>({i, o:i===0?player:Object.assign({},player), hero:i===0?HERO:(CREW.find(c=>c!==HERO&&!isSecret(c))||CREW[1]), inv:0, out:false, seen:0, alert:false, src:null, held:{}, raw:{}, cs:{idx:0, ready:false}})):[];
+    padSig='';
   }
   function withP(p, fn){
     const sv={player, HERO, inv:invulnTimer, IN};
@@ -2051,7 +2076,7 @@
         const col=(p,lit)=>{
           const k=lit?'':'x', c=(u,l,d,r)=>cluster(u,l,d,r).replace(/data-k="/g,`data-k="${k}`);
           const keys=p.src==='kbB'?c('W','A','S','D')+`<span class="kc wide" data-k="${k}act">SPACE</span>`
-            : p.src==='kbA'?c(tri(0),tri(270),tri(180),tri(90))+`<span class="kc" data-k="${k}act">/</span>`
+            : p.src==='kbA'||p.src==='kb'?c(tri(0),tri(270),tri(180),tri(90))+`<span class="kc" data-k="${k}act">/</span>`
             : PAD_SVG.replace(/id="pad[A-Za-z]+"/g, m=>lit?m:'');
           return `<div class="kb-wrap"><span class="kb-cap" style="color:${TAG_COL[p.i]}">${p.i+1}P ${escapeHtml(p.hero.name)}</span>${keys}${p.src&&p.src.startsWith('pad')?`<span class="kb-cap">${srcLabel(p.src)}</span>`:''}</div>`;
         };
@@ -2116,7 +2141,7 @@
   function updateControls(dt){
     ctrlT+=dt; drawDemo(ctrlT);
     if(ctrlT>0.6 && (pressed.action||pressed.start)){ sfx.go(); lightKeys(null,false); startGame(0); }
-    else if(pressed.back){ sfx.select(); if(coop){ csPhase=2; HERO=P[1].hero; } openCharSelect(); }
+    else if(pressed.back){ sfx.select(); openCharSelect(); }
   }
   $('ctrlScreen').addEventListener('click', ()=>{ if(state==='CONTROLS' && ctrlT>0.6){ sfx.go(); startGame(0); } });
   function openDiff(){
@@ -2170,19 +2195,30 @@
     };
     $('csGrid').innerHTML=csEntries.map(cell).join('');
     $('csGrid').classList.toggle('tall', Math.max(...csEntries.map(e=>e.r))>=4);   // 5 rows (cheat-code heroes): smaller tiles
-    $('csHead').textContent=csView==='crew'?(duel?`STAKES ONLY: PLAYER ${csPhase}`:coop?`PLAYER ${csPhase}: PICK YOUR HERO`:'SELECT YOUR CREW'):'SECRET HEROES';
+    $('csHead').textContent=csView==='crew'?(duel?'STAKES ONLY: PICK HEROES':coop?'PICK YOUR HEROES':'SELECT YOUR CREW'):'SECRET HEROES';
     $('charScreen').classList.toggle('secret', csView==='secret');
-    $('charScreen').classList.toggle('p2', coop && csPhase===2);
-    $('csHelp').innerHTML=coop && settings.mode!=='show'
-      ? `${csPhase}P: PICK WITH YOUR KEYS<br><b>WASD+SPACE</b> OR <b>ARROWS+/</b>`
-      : '<b>A</b> SELECT &middot; <b>B</b> BACK';
-    if(coop && csPhase===2) $('csGrid').querySelectorAll('[data-i]').forEach(el=>{ const e=csEntries[+el.dataset.i]; el.classList.toggle('taken', e.kind==='hero' && e.c===P[0].hero); });
+    $('charScreen').classList.remove('p2');
+    $('csHelp').innerHTML=coop ? 'BOTH PICK AT ONCE &middot; <b>A</b> READY &middot; <b>B</b> UNDO' : '<b>A</b> SELECT &middot; <b>B</b> BACK';
     $('csGrid').querySelectorAll('[data-i]').forEach(el=>{
-      el.addEventListener('click', e=>{ e.stopPropagation(); const i=+el.dataset.i; if(i===csIdx) csActivate(); else { csIdx=i; renderCharSel(); sfx.move(); } });
-      el.addEventListener('mouseenter', ()=>{ const i=+el.dataset.i; if(i!==csIdx && state==='CHARSEL' && !csPicked){ csIdx=i; renderCharSel(); } });
+      el.addEventListener('click', e=>{ e.stopPropagation(); const i=+el.dataset.i;
+        if(coop){ const p=P[0]; if(p.cs.ready||csPicked) return; if(i===p.cs.idx){ coopActivate(p); renderCharSel(); } else { p.cs.idx=i; renderCharSel(); sfx.move(); } return; }
+        if(i===csIdx) csActivate(); else { csIdx=i; renderCharSel(); sfx.move(); } });
+      el.addEventListener('mouseenter', ()=>{ const i=+el.dataset.i; if(coop) return; if(i!==csIdx && state==='CHARSEL' && !csPicked){ csIdx=i; renderCharSel(); } });
     });
   }
   function renderCharSel(){
+    $('charScreen').classList.toggle('duo', coop);
+    if(coop){
+      $('csGrid').querySelectorAll('[data-i]').forEach(el=>{ const i=+el.dataset.i;
+        el.classList.remove('sel','picked','taken');
+        P.forEach((p,k)=>{ el.classList.toggle('sel'+(k+1), i===p.cs.idx); el.classList.toggle('lock'+(k+1), i===p.cs.idx && p.cs.ready); }); });
+      $('csDuo').innerHTML=P.map((p,k)=>{
+        const e=csEntries[p.cs.idx]||{}, c=p.cs.ready?p.hero:(e.kind==='hero'?e.c:null);
+        const pic=c?`<img src="${c.portrait}" alt="">`:`<div class="cs-mystery">${e.kind==='back'?'&lt;':KEY_SVG}</div>`;
+        return `<div class="duo-card k${k}"><div class="duo-por">${pic}</div><div class="duo-info"><span class="duo-tag">${k+1}P &middot; ${escapeHtml(srcLabel(p.src))}</span><span class="duo-name">${c?escapeHtml(c.name):'?'}</span><span class="duo-state${p.cs.ready?' ready':''}">${p.cs.ready?'READY!':'PICKING...'}</span></div></div>`;
+      }).join('');
+      return;
+    }
     const e=csEntries[csIdx];
     if(e.kind==='hero'){
       $('csPortrait').innerHTML=`<img src="${e.c.portrait}" alt="${e.c.name}">`;
@@ -2204,9 +2240,14 @@
     state='CHARSEL'; csPicked=0;
     if(isSecret(HERO) && !settings.secretHeroes) HERO=CREW[0];
     if(CODE_IDS.includes(HERO.id) && !codeUnlocked) HERO=CREW[0];
-    csView=isSecret(HERO)?'secret':'crew'; buildCharGrid();
+    if(coop){ P.forEach(p=>{ if(isSecret(p.hero) && !(settings.secretHeroes||duel)) p.hero=CREW[0]; if(CODE_IDS.includes(p.hero.id) && !codeUnlocked) p.hero=CREW[0]; }); }
+    csView=(coop?P.every(p=>isSecret(p.hero)):isSecret(HERO))?'secret':'crew'; buildCharGrid();
     csIdx=Math.max(0, csEntries.findIndex(e=>e.c===HERO));
-    if(coop && csPhase===2 && csEntries[csIdx].c===P[0].hero){ const nav=csNav(); csIdx=nav[(nav.indexOf(csIdx)+1)%nav.length]; }
+    if(coop){
+      assignSources(); coopCursorsHome();
+      P.forEach(p=>{ p.cs.ready=false; const k=csEntries.findIndex(e=>e.c===p.hero); if(k>=0) p.cs.idx=k; p.nav={prev:Object.assign({}, srcHeld[p.src]||{}), t:{}}; });
+      if(P[0].cs.idx===P[1].cs.idx){ const nav=csNav(); P[1].cs.idx=nav[(nav.indexOf(P[0].cs.idx)+1)%nav.length]; }
+    }
     show('charScreen'); renderCharSel();
     Snd.play('title');
   }
@@ -2230,14 +2271,95 @@
   }
   // each player keeps the controller they picked their hero with; if one controller picked both,
   // 2P gets another controller (or the other half of the keyboard)
-  const srcLabel=src=>src==='kbB'?'W A S D + SPACE':src==='kbA'?'ARROWS + /':src&&src.startsWith('pad')?'CONTROLLER '+(+src.slice(3)+1):'?';
+  const srcLabel=src=>src==='kbB'?'W A S D + SPACE':src==='kbA'?'ARROWS + /':src==='kb'?'THE KEYBOARD':src&&src.startsWith('pad')?'CONTROLLER '+(+src.slice(3)+1):'?';
+  // Two controllers: 1P = the first, 2P = the second. One controller: 1P has it, 2P the keyboard.
+  // No controllers: 1P = W A S D + SPACE, 2P = ARROWS + /. Re-checked while picking, since a browser only
+  // reports a controller once one of its buttons has been pressed.
+  let padSig='';
+  function assignSources(){
+    const pads=(navigator.getGamepads?[...navigator.getGamepads()]:[]).filter(Boolean).map(g=>'pad'+g.index);
+    const sig=pads.join(','); if(sig===padSig && P[0].src && P[1].src) return; padSig=sig;
+    if(pads.length>=2){ P[0].src=pads[0]; P[1].src=pads[1]; }
+    else if(pads.length===1){ P[0].src=pads[0]; P[1].src='kb'; }
+    else { P[0].src='kbB'; P[1].src='kbA'; }
+    for(const p of P) p.nav={prev:Object.assign({}, srcHeld[p.src]||{}), t:{}};
+  }
+  // a player's own menu presses (with auto-repeat on the D-pad), from their own controller
+  function pNav(p,dt){
+    const h=p.raw||{}, n=p.nav||(p.nav={prev:{},t:{}}), out={};
+    for(const b of ['up','down','left','right','action','back','start']){
+      const cur=!!h[b], was=!!n.prev[b]; let fire=false;
+      if(cur && !was){ fire=true; n.t[b]=0; }
+      else if(cur && (b==='up'||b==='down'||b==='left'||b==='right')){   // the D-pad auto-repeats
+        const before=n.t[b]; n.t[b]+=dt; const D=0.38, Rp=0.085;
+        if(n.t[b]>D && Math.floor((n.t[b]-D)/Rp)!==Math.floor(Math.max(0,before-D)/Rp)) fire=true;
+      }
+      n.prev[b]=cur; out[b]=fire;
+    }
+    return out;
+  }
   function resolveSources(){
     const pads=(navigator.getGamepads?[...navigator.getGamepads()]:[]).filter(Boolean).map(g=>'pad'+g.index);
     let a=P[0].src||pads[0]||'kbA', b=P[1].src;
     if(!b || b===a) b=pads.find(s=>s!==a) || (a==='kbA'?'kbB':'kbA');
     P[0].src=a; P[1].src=b;
   }
+  function csMove(i, m){
+    const nav=csNav(), rows=Math.max(...nav.map(k=>csEntries[k].r))+1, mid=k=>csEntries[k].col+csEntries[k].span/2;
+    const inRow=r=>nav.filter(k=>csEntries[k].r===r);
+    const nearest=(r,c)=>inRow(r).reduce((a,k)=>Math.abs(mid(k)-c)<Math.abs(mid(a)-c)?k:a, inRow(r)[0]);
+    if(!nav.includes(i)) i=nav[0];
+    if(m.left||m.right){ const row=inRow(csEntries[i].r), j=row.indexOf(i); i=row[(j+(m.right?1:row.length-1))%row.length]; }
+    if(m.up) i=nearest((csEntries[i].r+rows-1)%rows, mid(i));
+    if(m.down) i=nearest((csEntries[i].r+1)%rows, mid(i));
+    return i;
+  }
+  function coopCursorsHome(){   // after the page changes, both cursors start on the first heroes of the page
+    const nav=csNav();
+    P.forEach((p,k)=>{ p.cs.idx=nav[Math.min(k,nav.length-1)]; });
+  }
+  function coopView(v, focus){ csView=v; buildCharGrid(); coopCursorsHome(); if(focus!=null) P.forEach(p=>{ if(!p.cs.ready) p.cs.idx=focus; }); renderCharSel(); }
+  function coopActivate(p){
+    const e=csEntries[p.cs.idx], other=P[1-p.i];
+    if(e.kind==='hero'){
+      if(other.cs.ready && other.hero===e.c){   // heroes must be different
+        sfx.warn(); const el=$('csGrid').querySelector(`[data-i="${p.cs.idx}"]`); if(el){ el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); } return;
+      }
+      p.hero=e.c; p.cs.ready=true; sfx.cover(); return;
+    }
+    if(e.kind==='back'){ sfx.select(); return coopView('crew'); }
+    if(!settings.secretHeroes && !duel){ sfx.warn(); const el=$('csGrid').querySelector('.cs-wide'); el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); return; }
+    sfx.cover(); coopView('secret');
+  }
+  function updateCoopSelect(dt){
+    if(csPicked){
+      for(const p of P){ if(pNav(p,dt).back){ p.cs.ready=false; csPicked=0; sfx.select(); renderCharSel(); return; } }
+      csPicked-=dt; if(csPicked<=0){ csPicked=0; HERO=P[0].hero; if(duel) startDuel(); else openControls(); } return;
+    }
+    assignSources();
+    if(csView==='secret' && !codeUnlocked){   // the cheat code works from either controller
+      const dir=['up','down','left','right'].find(d=>pressed[d]);
+      if(dir){ cheatPos=(dir===CHEAT[cheatPos])?cheatPos+1:(dir===CHEAT[0]?1:0);
+        if(cheatPos===CHEAT.length){ codeUnlocked=true; cheatPos=0; sfx.cover(); coopView('secret'); return; } }
+    }
+    let changed=false;
+    for(const p of P){
+      const m=pNav(p,dt);
+      if(!p.cs.ready){
+        const j=csMove(p.cs.idx,m);
+        if(j!==p.cs.idx){ p.cs.idx=j; sfx.move(); changed=true; }
+        if(m.action||m.start){ coopActivate(p); changed=true; if(state!=='CHARSEL') return; }
+        else if(m.back){
+          if(csView==='secret'){ sfx.select(); coopView('crew'); return; }
+          if(P.every(q=>!q.cs.ready)){ sfx.select(); if(duel) duelBack(); else openPlayers(); return; }
+        }
+      } else if(m.back){ p.cs.ready=false; sfx.select(); changed=true; }   // B changes your mind
+    }
+    if(changed) renderCharSel();
+    if(P.every(q=>q.cs.ready)){ csPicked=0.6; sfx.go(); renderCharSel(); }
+  }
   function updateCharSelect(dt){
+    if(coop) return updateCoopSelect(dt);
     if(csPicked){ csPicked-=dt; if(csPicked<=0){ csPicked=0;
       if(coop && csPhase===1){ csPhase=2; openCharSelect(); return; }
       if(coop){ HERO=P[0].hero; resolveSources(); }

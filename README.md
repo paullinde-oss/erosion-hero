@@ -39,9 +39,9 @@ Difficulty follows the mode: CONFERENCE plays the base tuning (built for one or 
 
 ## 2 players (Conference and Public)
 After PRESS START, players pick **1 PLAYER** or **2 PLAYERS** (Public then picks the difficulty). In 2-player mode:
-- Public: two people share one keyboard, with 1P on **W A S D + SPACE** and 2P on **ARROWS + /**, or each uses a game controller (Xbox, PlayStation and USB pads all work). Each player picks their hero using their own keys, and the How to Play screen shows who has which keys. 2-player isn't offered on phones and tablets, which have only one set of on-screen buttons.
+- Public: two people share one keyboard, with 1P on **W A S D + SPACE** and 2P on **ARROWS + /**, or each uses a game controller (Xbox, PlayStation and USB pads all work). Both players pick their heroes at the same time on their own keys, and the How to Play screen shows who has which keys. 2-player isn't offered on phones and tablets, which have only one set of on-screen buttons.
 - Public team scores save as `PAUL & GRANT` (names only) with both faces and the difficulty badge.
-- Player 1 picks a hero (red 1P cursor), then Player 2 picks a different one (blue 2P cursor). Each player keeps the controller they picked with. With only one controller, Player 2 gets the keyboard.
+- Both players pick at the same time: red 1P cursor and blue 2P cursor, each on their own controller. **A** locks a hero in (READY!), **B** undoes it, and the heroes must be different. With two controllers, 1P is the first and 2P the second. With one controller, 2P uses the keyboard. With none, 1P uses W A S D + SPACE and 2P uses ARROWS + /.
 - The team **shares 4 hearts**. Anyone's mistake costs the team (a hit, a washout, a missed drain). Game over at 0.
 - Curtain sites: 1P drives the Lakeshore boat and 2P drives the Riverbank boat.
 - Balance: 2-player sites have the **same number of patches and drains to score** as solo, so the most points possible is the same. The added difficulty is danger, not extra chances to score: patches wash out about 30% faster, the Inspector walks 20% faster, and traffic comes about 30% more often and 12% faster. Bot tests put a good duo and a good solo player at about the same score on every site.
@@ -50,7 +50,7 @@ After PRESS START, players pick **1 PLAYER** or **2 PLAYERS** (Public then picks
 
 ## Stakes Only (secret 2-player duel, operator menu)
 A just-for-fun mode for BMP Supplies staff. Open the operator menu (helmet, PIN) and choose **STAKES ONLY → PLAY**.
-- Player 1 then Player 2 pick a hero. Every hero is unlocked, cheat-code heroes included, and the two must be different.
+- Both players pick at the same time (same as 2-player mode). Every hero is unlocked, cheat-code heroes included, and the two must be different.
 - The arena is Main Street with the street frozen: no drains, no Inspector. Cars and BMP trucks drive slowly from both sides (top lane right-to-left, bottom lane left-to-right).
 - D-pad (or WASD / arrows) moves. **A** (or Space / `/`) throws a blanket stake the way you're facing, with a short reload between throws.
 - 5 hearts each. A stake hit or a car costs one heart, followed by a short blink when you can't be hit. Cars block stakes, which stick in them.
