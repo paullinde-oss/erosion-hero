@@ -77,6 +77,14 @@
     padding:calc(var(--u)*10);
   }
   .overlay.hidden{ display:none; }
+  /* leaderboard page 2 (ranks 11-20): small arrow button in the panel's bottom-right corner */
+  #boardScreen .panel{ position:relative; }
+  #boardScreen .lb-pager{ position:absolute; right:calc(var(--u)*7); bottom:calc(var(--u)*8); display:flex; align-items:center; gap:calc(var(--u)*2); font-size:calc(var(--u)*5); padding:calc(var(--u)*2) calc(var(--u)*3); min-width:0; }
+  #boardScreen .lb-pager.hidden{ display:none; }
+  .lb-pager svg{ width:calc(var(--u)*5); height:calc(var(--u)*5); }
+  #boardScreen .lb-pager.back{ flex-direction:row-reverse; }
+  .lb-pager.back svg{ transform:scaleX(-1); }
+  .lb.p2 li:nth-child(n) .rk{ color:var(--muted); }
   #boardScreen{ justify-content:safe center; overflow-y:auto; padding-top:calc(var(--u)*6); padding-bottom:calc(var(--u)*6); }
   #boardScreen .panel{ gap:calc(var(--u)*4); padding:calc(var(--u)*7) calc(var(--u)*8); }
   #boardScreen .lb{ gap:calc(var(--u)*1); }
@@ -584,6 +592,7 @@
         <button class="btn" data-act="again" id="boardAgainBtn">PLAY AGAIN</button>
         <button class="btn" data-act="title">MAIN MENU</button>
       </div>
+      <button class="btn lb-pager hidden" data-act="boardPage" id="boardPageBtn" aria-label="Next page"><span>11-20</span><svg viewBox="0 0 8 8" shape-rendering="crispEdges"><path d="M2 1L6 4L2 7Z" fill="currentColor"/></svg></button>
     </div>
   </div>
 
@@ -1545,9 +1554,10 @@
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
-  function boardHtml(list, highlightId){
+  function boardHtml(list, highlightId, start){
+    start=start||0;
     if(!list.length) return '<li class="lb-empty" style="display:block;text-align:center">NO SCORES YET &mdash; BE THE FIRST!</li>';
-    return list.map((r,i)=>`<li class="${r.id!=null&&r.id===highlightId?'me':''}"><span class="rk">${String(i+1).padStart(2,' ')}</span><span class="who${r.company?' wrap':''}">${crewById(r.crew)?`<img class="face" src="${crewById(r.crew).face}" alt="">`:''}${crewById(r.crew2)?`<img class="face face2" src="${crewById(r.crew2).face}" alt="">`:''}${escapeHtml(r.name||'ANONYMOUS')}${settings.mode!=='show'?`<span class="dtag d${(r.difficulty||'M')}">${escapeHtml(r.difficulty||'M')}</span>`:''}${r.company?`<span class="co"> - ${escapeHtml(r.company)}</span>`:''}</span><span class="sc">${r.score}</span></li>`).join('');
+    return list.map((r,i)=>`<li class="${r.id!=null&&r.id===highlightId?'me':''}"><span class="rk">${String(start+i+1).padStart(2,' ')}</span><span class="who${r.company?' wrap':''}">${crewById(r.crew)?`<img class="face" src="${crewById(r.crew).face}" alt="">`:''}${crewById(r.crew2)?`<img class="face face2" src="${crewById(r.crew2).face}" alt="">`:''}${escapeHtml(r.name||'ANONYMOUS')}${settings.mode!=='show'?`<span class="dtag d${(r.difficulty||'M')}">${escapeHtml(r.difficulty||'M')}</span>`:''}${r.company?`<span class="co"> - ${escapeHtml(r.company)}</span>`:''}</span><span class="sc">${r.score}</span></li>`).join('');
   }
 
   // =====================================================================
@@ -2284,9 +2294,24 @@
     boardFromTitle=!!fromTitle;
     $('boardMode').textContent=settings.mode==='show'?'CONFERENCE BOARD':(Firestore?'ONLINE BOARD':'PUBLIC BOARD');
     $('boardAgainBtn').textContent=fromTitle?'PLAY':'PLAY AGAIN';
-    $('boardList').innerHTML=boardHtml(await Board.top(10), highlightId);
+    boardRows=await Board.top(20); boardHi=highlightId;
+    const mine=boardRows.findIndex(r=>r.id!=null && r.id===highlightId);
+    boardPage=mine>=10?1:0;                       // a new score ranked 11-20 opens on page 2
+    renderBoardPage();
     state='BOARD';
     show('boardScreen');
+  }
+  let boardRows=[], boardPage=0, boardHi=null;
+  function renderBoardPage(){
+    const two=boardRows.length>10;
+    if(!two) boardPage=0;
+    $('boardList').innerHTML=boardHtml(boardRows.slice(boardPage*10, boardPage*10+10), boardHi, boardPage*10);
+    $('boardList').classList.toggle('p2', boardPage===1);
+    const b=$('boardPageBtn');
+    b.classList.toggle('hidden', !two);
+    b.classList.toggle('back', boardPage===1);
+    b.querySelector('span').textContent=boardPage===1?'1-10':'11-20';
+    b.setAttribute('aria-label', boardPage===1?'Top 10':'Ranks 11 to 20');
   }
   async function refreshTitleScores(){
     const top=await Board.top(5);
@@ -2310,6 +2335,7 @@
       case 'diff': runDiff=el.dataset.d; openCharSelect(); break;
       case 'players': setupPlayers(+el.dataset.n); if(settings.mode==='show') openCharSelect(); else openDiff(); break;
       case 'title': goTitle(); break;
+      case 'boardPage': boardPage=1-boardPage; renderBoardPage(); sfx.select(); break;
       case 'site': qaMode=true; startGame(parseInt(el.dataset.site,10)); break;
       case 'sound': toggleSound(); break;
       case 'toggle': settings[el.dataset.key]=!settings[el.dataset.key]; saveSettings(); applySettings(); break;
