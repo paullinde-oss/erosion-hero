@@ -2265,10 +2265,10 @@
   }
   // ---------- character select ----------
   // Main crew on the first page; guest stars behind "UNLOCK SECRET HEROES" (operator menu can lock them).
-  const SECRET_IDS=['mike','wayne','oprah','donald','taylor','doug','hogan','tiger','dolly'], SECRET_SLOTS=9, CS_COLS=3;
+  const SECRET_IDS=['mike','wayne','oprah','donald','taylor','doug','hogan','tiger','dolly','jim'], SECRET_SLOTS=12, CS_COLS=3;
   // Cheat-code heroes: hidden from the Secret Heroes page until UP UP DOWN DOWN LEFT RIGHT LEFT RIGHT is entered
   // there. They lock again when the game returns to the title, so the next player doesn't see them.
-  const CODE_IDS=['ralph','chief','rosie','jim'], CHEAT=['up','up','down','down','left','right','left','right'];
+  const CODE_IDS=['ralph','chief','rosie'], CHEAT=['up','up','down','down','left','right','left','right'];
   let codeUnlocked=false, cheatPos=0;
   const KEY_SVG='<svg class="cs-ico" viewBox="0 0 12 7" shape-rendering="crispEdges"><path fill="#ffd23a" d="M1 1h4v1h1v1h6v2h-1v1h-1v-1h-1v1h-1v-1h-3v1h-1v1h-4v-1h-1v-4h1z"/><path class="hole" fill="#1d2f8a" d="M2 3h2v2h-2z"/><path fill="#fff3c4" d="M1 1h4v1h-4z"/></svg>';
   const LOCK_SVG='<svg class="cs-ico" viewBox="0 0 8 9" shape-rendering="crispEdges"><path fill="#9aa6c8" d="M2 0h4v1h1v3h-1v-3h-4v3h-1v-3h1z"/><path fill="#c9ced8" d="M0 4h8v5h-8z"/><path fill="#5a6280" d="M3 5h2v2h-1v1h-1z"/></svg>';
@@ -2319,7 +2319,7 @@
         el.classList.remove('sel','picked','taken');
         P.forEach((p,k)=>{ el.classList.toggle('sel'+(k+1), i===p.cs.idx); el.classList.toggle('lock'+(k+1), i===p.cs.idx && p.cs.ready); }); });
       P.forEach((p,k)=>{
-        const e=csEntries[p.cs.idx]||{}, c=p.cs.ready?p.hero:(e.kind==='hero'?e.c:null);
+        const e=csEntries[p.cs.idx]||{kind:'hero'}, c=p.cs.ready?p.hero:(e.kind==='hero'?e.c:null);
         const open=e.kind==='back'||settings.secretHeroes||duel;
         const pic=c?`<img src="${c.portrait}" alt="${escapeHtml(c.name)}">`:`<div class="cs-mystery">${e.kind==='back'?'&lt;':open?KEY_SVG:LOCK_SVG}</div>`;
         const name=c?c.name:e.kind==='back'?'CREW':open?'SECRET':'LOCKED';
@@ -2426,9 +2426,12 @@
     if(m.down) i=nearest((csEntries[i].r+1)%rows, mid(i));
     return i;
   }
-  function coopCursorsHome(){   // after the page changes, both cursors start on the first heroes of the page
+  function coopCursorsHome(){   // after the page changes: a locked-in player stays on their hero (or off this page); others start at the top
     const nav=csNav();
-    P.forEach((p,k)=>{ p.cs.idx=nav[Math.min(k,nav.length-1)]; });
+    P.forEach((p,k)=>{
+      if(p.cs.ready){ p.cs.idx=csEntries.findIndex(e=>e.kind==='hero' && e.c===p.hero); return; }   // -1 = their hero is on the other page
+      p.cs.idx=nav[Math.min(k,nav.length-1)];
+    });
   }
   function coopView(v, focus){ csView=v; buildCharGrid(); coopCursorsHome(); if(focus!=null) P.forEach(p=>{ if(!p.cs.ready) p.cs.idx=focus; }); renderCharSel(); }
   function coopActivate(p){
@@ -2465,7 +2468,7 @@
           if(csView==='secret'){ sfx.select(); coopView('crew'); return; }
           if(P.every(q=>!q.cs.ready)){ sfx.select(); if(duel) duelBack(); else openPlayers(); return; }
         }
-      } else if(m.back){ p.cs.ready=false; sfx.select(); changed=true; }   // B changes your mind
+      } else if(m.back){ p.cs.ready=false; if(p.cs.idx<0) p.cs.idx=csNav()[0]; sfx.select(); changed=true; }   // B changes your mind
     }
     if(changed) renderCharSel();
     if(P.every(q=>q.cs.ready)){ csPicked=0.6; sfx.go(); renderCharSel(); }
