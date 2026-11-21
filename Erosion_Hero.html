@@ -88,9 +88,9 @@
   #boardScreen{ justify-content:safe center; overflow-y:auto; padding-top:calc(var(--u)*6); padding-bottom:calc(var(--u)*6); }
   #boardScreen .panel{ gap:calc(var(--u)*4); padding:calc(var(--u)*7) calc(var(--u)*8); }
   #boardScreen .lb{ gap:calc(var(--u)*1); }
-  #boardScreen .lb li{ padding-top:calc(var(--u)*1.5); padding-bottom:calc(var(--u)*1.5); }
+  #boardScreen .lb li{ padding:calc(var(--u)*1.5) calc(var(--u)*3); gap:calc(var(--u)*3); }
   #boardScreen .lb li .face{ width:calc(var(--u)*9); height:calc(var(--u)*9); margin-right:calc(var(--u)*2); }
-  #boardScreen .lb li .face2{ margin-left:calc(var(--u)*-5); }
+  #boardScreen .lb li .face2{ margin-left:calc(var(--u)*-1); }
   .overlay.dim{ background:rgba(9,8,6,.72); }
   .panel{
     background:rgba(28,23,18,.96);
@@ -366,7 +366,7 @@
   .cs-cell.taken img{ opacity:.35; filter:grayscale(1); }
   .cs-cell.taken::before{ content:'1P'; position:absolute; bottom:0; right:0; font-size:calc(var(--u)*7); line-height:1; padding:calc(var(--u)*1.5) calc(var(--u)*2); background:#ff3a1a; color:#fff; }
   .cs-cell.shake{ animation:csShake .3s; }
-  .lb li .face2{ margin-left:calc(var(--u)*-6); }
+  .lb li .face2{ margin-left:calc(var(--u)*-2); }   /* 2-player rows: two faces side by side, 1px apart, no overlap */
   @keyframes csBlink{ 50%{ outline-color:#fff3c4; } }
   .cs-help{ font-size:calc(var(--u)*6); color:#dfe8ff; }
   .cs-help b{ color:var(--hazard); font-weight:normal; }
