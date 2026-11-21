@@ -48,6 +48,17 @@ After PRESS START, players pick **1 PLAYER** or **2 PLAYERS** (Public then picks
 - At the end: 1P name, 2P name, then one company (the team is assumed to work for the same company). The board shows `PAUL & GRANT - BMP SUPPLIES` with both faces. The ending scene shows Player 1's hero.
 - CSV export: one row per person, with a `players` column (1 or 2) and a `teammate` column. A team's two rows share the same rank and score.
 
+## Edit the leaderboard (operator menu)
+Helmet → PIN → **LEADERBOARD → EDIT** lists the top 20 of the board for the current event mode. Move to a score and press **A** twice (the row turns red and reads "A = YES") to delete it. Moving away cancels. **B** or CLOSE goes back.
+- **Conference board:** deletes from this laptop right away, with a controller only.
+- **Online board:** deleting needs the admin sign-in (Firebase email + password, typed on a keyboard, once per device; SIGN OUT is on the same screen). Scores still waiting to upload from this device delete without signing in. The PIN alone can't delete online scores, because the Firestore rules decide who can.
+
+One-time Firebase setup for online deletes:
+1. Firebase console → **Authentication** → Get started → Sign-in method → **Email/Password** → Enable.
+2. Authentication → **Users** → Add user (the admin email + a strong password). Copy that user's **User UID**.
+3. Authentication → **Settings** → User actions → turn **off** "Enable create (sign-up)", so nobody else can create accounts.
+4. Firestore → **Rules**: add `allow delete: if request.auth != null && request.auth.uid == '<that UID>';` to `match /scores/{id}` and keep `allow update: if false;`. Publish.
+
 ## Stakes Only (secret 2-player duel, operator menu)
 A just-for-fun mode for BMP Supplies staff. Open the operator menu (helmet, PIN) and choose **STAKES ONLY → PLAY**.
 - Both players pick at the same time (same as 2-player mode). Every hero is unlocked, cheat-code heroes included, and the two must be different.
@@ -77,7 +88,7 @@ chrome --kiosk --autoplay-policy=no-user-gesture-required "file:///path/to/Erosi
 ```
 
 ## Leaderboard / Firebase
-Conference scores live in this browser's localStorage (`erosionHeroLeads_v1`). Public scores are kept in `erosionHeroScores_public_v1` and uploaded to the Firestore collection `scores` through the REST API (no SDK). Firebase project: `erosion-hero` (config in `FIREBASE_CONFIG`). Delete bad entries in the Firebase console under Firestore Database > scores. The security rules allow anyone to read and add scores (name, crew, score, site, curtain %, date only), and nobody to edit or delete them from the game.
+Conference scores live in this browser's localStorage (`erosionHeroLeads_v1`). Public scores are kept in `erosionHeroScores_public_v1` and uploaded to the Firestore collection `scores` through the REST API (no SDK). Firebase project: `erosion-hero` (config in `FIREBASE_CONFIG`). Delete bad entries from the game (operator menu → LEADERBOARD → EDIT, see above) or in the Firebase console under Firestore Database > scores. The security rules allow anyone to read and add scores (name, crew, score, site, curtain %, date only), and nobody to edit or delete them from the game.
 
 ## Scoring
 - +50 per erosion control blanket (each covers 2 tiles), +25 per protected inlet; -15 per life lost. On Main Street a drain that gets past you costs half a heart (-8), since traffic can block it.

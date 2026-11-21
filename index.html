@@ -77,6 +77,19 @@
     padding:calc(var(--u)*10);
   }
   .overlay.hidden{ display:none; }
+  /* operator: edit leaderboard */
+  .eb-panel{ gap:calc(var(--u)*4); padding:calc(var(--u)*7) calc(var(--u)*8); }
+  .eb-list{ width:100%; max-height:calc(var(--u)*120); overflow-y:auto; display:flex; flex-direction:column; gap:calc(var(--u)*1); }
+  .eb-row.btn{ display:grid; grid-template-columns:calc(var(--u)*12) 1fr auto calc(var(--u)*40); gap:calc(var(--u)*3); align-items:center; text-align:left; font-size:calc(var(--u)*5); padding:calc(var(--u)*2) calc(var(--u)*3); width:100%; }
+  .eb-row .who{ overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .eb-row .sc{ color:var(--hazard); text-align:right; }
+  .eb-row .act{ text-align:right; color:var(--muted); }
+  .eb-row.focus .sc, .eb-row.focus .act{ color:var(--ink); }
+  .eb-row.armed, .eb-row.armed.focus{ background:#b1291f; color:#fff; } .eb-row.armed .act, .eb-row.armed .sc{ color:#fff; }
+  .eb-sign{ display:flex; gap:calc(var(--u)*3); width:100%; align-items:center; }
+  .eb-sign.hidden, .btn.hidden{ display:none; }
+  .eb-sign input{ flex:1; min-width:0; font:inherit; font-size:calc(var(--u)*5); padding:calc(var(--u)*2); background:#0d0b08; color:var(--paper); border:calc(var(--u)*0.5) solid var(--panel-line); }
+  .eb-msg{ font-size:calc(var(--u)*5); color:var(--hazard); min-height:1.4em; }
   /* leaderboard page 2 (ranks 11-20): small arrow button in the panel's bottom-right corner */
   #boardScreen .panel{ position:relative; }
   #boardScreen .lb-pager{ position:absolute; right:calc(var(--u)*7); bottom:calc(var(--u)*8); display:flex; align-items:center; gap:calc(var(--u)*2); font-size:calc(var(--u)*5); padding:calc(var(--u)*2) calc(var(--u)*3); min-width:0; }
@@ -617,6 +630,25 @@
     </div>
   </div>
 
+  <!-- EDIT LEADERBOARD (operator menu): delete entries; online deletes need the admin sign-in -->
+  <div class="overlay dim hidden" id="editBoardScreen">
+    <div class="panel eb-panel">
+      <h2>EDIT LEADERBOARD</h2>
+      <div class="board-mode" id="ebMode"></div>
+      <div class="eb-list" id="ebList"></div>
+      <div class="eb-sign hidden" id="ebSign">
+        <input id="ebEmail" type="email" placeholder="ADMIN EMAIL" autocomplete="username" spellcheck="false">
+        <input id="ebPass" type="password" placeholder="PASSWORD" autocomplete="current-password">
+        <button class="btn" data-act="ebSignIn">SIGN IN</button>
+      </div>
+      <div class="eb-msg" id="ebMsg"></div>
+      <div class="menu row">
+        <button class="btn hidden" data-act="ebSignOut" id="ebSignOutBtn">SIGN OUT</button>
+        <button class="btn" data-act="ebClose">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
   <!-- LEADERBOARD -->
   <div class="overlay dim hidden" id="boardScreen">
     <div class="panel hazard">
@@ -712,6 +744,7 @@
         <div class="admin-row"><span>IDLE RESET</span><button class="btn" data-act="toggle" data-key="idleReset"></button></div>
         <div class="admin-row"><span>DISPLAY</span><button class="btn" data-act="fullscreen">FULLSCREEN</button></div>
         <div class="admin-row"><span>OPERATOR PIN</span><button class="btn" data-act="pinChange">CHANGE</button></div>
+        <div class="admin-row"><span>LEADERBOARD</span><button class="btn" data-act="editBoard">EDIT</button></div>
         <div class="admin-row"><span>CONFERENCE LEADS (<b id="leadCount">0</b>)</span>
           <div class="menu row">
             <button class="btn" data-act="export">EXPORT CSV</button>
@@ -1318,7 +1351,9 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   window.addEventListener('keydown', e=>{ if(KB_SRC[e.code]){ kbCodes[e.code]=true; if(!e.repeat){ kbCodeLatch[e.code]=true; lastSrc=KB_SRC[e.code][0]; } } }, true);
   window.addEventListener('keyup', e=>{ kbCodes[e.code]=false; }, true);
   window.addEventListener('blur', ()=>{ for(const k in kbCodes) kbCodes[k]=false; });
+  const typingInField=e=>e.target && (e.target.tagName==='INPUT' || e.target.tagName==='TEXTAREA');
   window.addEventListener('keydown', e=>{
+    if(typingInField(e)){ markInput(); return; }
     markInput(); Snd.unlock(); usePhysicalControls();
     if(e.code==='Backquote'){ if(state!=='PIN' && state!=='ADMIN') openPin('unlock'); e.preventDefault(); return; }
     if(e.code==='KeyF' && state!=='ENTRY'){ toggleFullscreen(); return; }
@@ -1337,7 +1372,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       kbHeld[b]=true;
     }
   });
-  window.addEventListener('keyup', e=>{ const b=KEYMAP[e.code]; if(b) kbHeld[b]=false; });
+  window.addEventListener('keyup', e=>{ const b=KEYMAP[e.code]; if(b) kbHeld[b]=false; });   // (keyup always clears, even from a text box)
   window.addEventListener('blur', ()=>{ BTNS.forEach(b=>{ kbHeld[b]=false; touchHeld[b]=false; }); });
 
   function pollGamepads(){
@@ -1468,7 +1503,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   // =====================================================================
   //  MENUS: every overlay button is reachable by joystick/keys as well as mouse/touch
   // =====================================================================
-  const OVERLAYS=['duelEndScreen','playersScreen','diffScreen','ctrlScreen','endScreen','howScreen','pinScreen','titleScreen','charScreen','padScreen','briefScreen','pauseScreen','clearScreen','resultsScreen','entryScreen','boardScreen','adminScreen'];
+  const OVERLAYS=['editBoardScreen','duelEndScreen','playersScreen','diffScreen','ctrlScreen','endScreen','howScreen','pinScreen','titleScreen','charScreen','padScreen','briefScreen','pauseScreen','clearScreen','resultsScreen','entryScreen','boardScreen','adminScreen'];
   let currentOverlay=null, menuFocus=0;
   function show(id){
     OVERLAYS.forEach(x=>$(x).classList.toggle('hidden', x!==id));
@@ -1488,6 +1523,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     if(!bs.length) return;
     menuFocus=(menuFocus+bs.length)%bs.length;
     bs[menuFocus].classList.add('focus');
+    if(bs[menuFocus].closest('.eb-list')) bs[menuFocus].scrollIntoView({block:'nearest'});
   }
   function menuNav(){
     const bs=menuButtons();
@@ -1523,7 +1559,32 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   const ConferenceStore={
     async list(){ return readJson(BOARD_KEYS.show,[]); },
     async add(entry){ const arr=await this.list(); arr.push(entry); writeJson(BOARD_KEYS.show,arr); return entry; },
-    async clear(){ writeJson(BOARD_KEYS.show,[]); }
+    async clear(){ writeJson(BOARD_KEYS.show,[]); },
+    async remove(entry){ writeJson(BOARD_KEYS.show, (await this.list()).filter(e=>e.id!==entry.id)); }
+  };
+  // Operator sign-in for deleting ONLINE scores (Firebase Authentication, email + password, REST).
+  // The PIN only hides the menu; the Firestore rules decide who may delete, by this account's uid.
+  const ADMIN_KEY='erosionHeroAdmin_v1';
+  const Admin={
+    get(){ return readJson(ADMIN_KEY,null); },
+    async signIn(email, password){
+      const r=await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_CONFIG.apiKey}`,
+        {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email, password, returnSecureToken:true})});
+      const j=await r.json().catch(()=>({}));
+      if(!r.ok) throw new Error(((j.error&&j.error.message)||('SIGN-IN FAILED '+r.status)).replace(/_/g,' '));
+      writeJson(ADMIN_KEY, {email:j.email, uid:j.localId, refresh:j.refreshToken, id:j.idToken, exp:Date.now()+(+j.expiresIn||3600)*1000-60000});
+    },
+    async token(){
+      const a=this.get(); if(!a) return null;
+      if(Date.now()<a.exp) return a.id;
+      const r=await fetch(`https://securetoken.googleapis.com/v1/token?key=${FIREBASE_CONFIG.apiKey}`,
+        {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(a.refresh)});
+      if(!r.ok){ this.signOut(); return null; }
+      const j=await r.json();
+      writeJson(ADMIN_KEY, Object.assign(a, {id:j.id_token, refresh:j.refresh_token||a.refresh, exp:Date.now()+(+j.expires_in||3600)*1000-60000}));
+      return a.id;
+    },
+    signOut(){ try{ localStorage.removeItem(ADMIN_KEY); }catch(e){} }
   };
   // Firestore over plain REST (no SDK to load, so it fails quietly when offline).
   const Firestore=FIREBASE_CONFIG && {
@@ -1544,7 +1605,11 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       const val=f=>f==null?null:f.integerValue!=null?Number(f.integerValue):f.stringValue!=null?f.stringValue:null;
       return (await r.json()).filter(x=>x.document).map(x=>{ const f=x.document.fields||{};
         const e={name:val(f.name), crew:val(f.crew), score:val(f.score), siteReached:val(f.siteReached), curtainAccuracy:val(f.curtainAccuracy), date:val(f.date), difficulty:val(f.difficulty)||'M', crew2:val(f.crew2)||undefined};
-        e.id=e.date+'|'+e.name; return e; });
+        e.id=e.date+'|'+e.name; e.doc=x.document.name; return e; });
+    },
+    async del(docName, token){   // needs the admin sign-in; the Firestore rules allow delete for that account only
+      const r=await fetch(`https://firestore.googleapis.com/v1/${docName}`, {method:'DELETE', headers:{Authorization:'Bearer '+token}});
+      if(!r.ok) throw new Error(r.status===403?'NOT ALLOWED (CHECK THE FIREBASE RULES)':'DELETE FAILED '+r.status);
     }
   };
   const PublicStore={
@@ -1576,7 +1641,16 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       }
       this.syncing=false;
     },
-    async clear(){ writeJson(BOARD_KEYS.public,[]); }
+    async clear(){ writeJson(BOARD_KEYS.public,[]); },
+    async remove(entry){
+      const dropLocal=()=>{ writeJson(BOARD_KEYS.public, this.local().filter(e=>e.id!==entry.id));
+                            writeJson(PUBLIC_CACHE_KEY, readJson(PUBLIC_CACHE_KEY,[]).filter(e=>e.id!==entry.id)); };
+      if(entry.pending || !entry.doc){ dropLocal(); return; }   // only on this device: no sign-in needed
+      const t=await Admin.token();
+      if(!t) throw new Error('SIGNIN');
+      await Firestore.del(entry.doc, t);
+      dropLocal();
+    }
   };
   if(Firestore){ window.addEventListener('online', ()=>PublicStore.sync()); setInterval(()=>PublicStore.sync(), 60000); setTimeout(()=>PublicStore.sync(), 1500); }
   const Board={
@@ -2619,6 +2693,11 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       case 'resume': resumeGame(); break;
       case 'restart': if(duel) startDuel(); else startGame(0); break;
       case 'stakes': openDuelSelect(); break;
+      case 'editBoard': openEditBoard(); break;
+      case 'ebDel': ebDelete(+el.dataset.k); break;
+      case 'ebSignIn': ebSignIn(); break;
+      case 'ebSignOut': Admin.signOut(); sfx.select(); $('ebMsg').textContent='SIGNED OUT'; renderEditBoard(); break;
+      case 'ebClose': closeEditBoard(); break;
       case 'duelAgain': startDuel(); break;
       case 'duelHeroes': openDuelSelect(); break;
       case 'duelBack': duelBack(); break;
@@ -3004,6 +3083,11 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
         menuNav(); if(pressed.back) duelBack(); break;
       case 'ADMIN':
         menuNav(); if(pressed.back){ sfx.select(); closeAdmin(); } break;
+      case 'EDITBOARD':
+        menuNav();
+        if(menuFocus!==ebFocusWas){ ebFocusWas=menuFocus; if(ebArmed>=0){ ebArmed=-1; ebLabels(); $('ebMsg').textContent=''; } }
+        if(pressed.back) closeEditBoard();
+        break;
       case 'BRIEFING': case 'PAUSED': case 'BOARD': case 'HOWTO':
         menuNav(); break;
       case 'CLEAR': case 'RESULTS':
@@ -3283,6 +3367,53 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     applySettings();
     $('leadCount').textContent=(await ConferenceStore.list()).length;
   }
+  // ---------- EDIT LEADERBOARD ----------
+  let ebRows=[], ebArmed=-1, ebFocusWas=-1;
+  async function openEditBoard(){
+    state='EDITBOARD'; show('editBoardScreen'); $('ebMsg').textContent=''; $('ebSign').classList.add('hidden');
+    menuFocus=0; await renderEditBoard();
+  }
+  function closeEditBoard(){
+    sfx.select(); state='ADMIN'; show('adminScreen'); applySettings();
+    ConferenceStore.list().then(l=>{ $('leadCount').textContent=l.length; });
+    refreshTitleScores();
+  }
+  async function renderEditBoard(){
+    const online=settings.mode!=='show' && Firestore, a=Admin.get();
+    $('ebMode').textContent=settings.mode==='show'?'CONFERENCE BOARD (THIS LAPTOP)':online?(a?'ONLINE BOARD \u00b7 SIGNED IN: '+a.email:'ONLINE BOARD \u00b7 DELETING NEEDS THE ADMIN SIGN-IN'):'PUBLIC BOARD';
+    $('ebSignOutBtn').classList.toggle('hidden', !(online && a));
+    ebRows=await Board.top(20); ebArmed=-1;
+    const q=v=>escapeHtml(v==null?'':String(v));
+    $('ebList').innerHTML=ebRows.length ? ebRows.map((r,i)=>`<button class="btn eb-row" data-act="ebDel" data-k="${i}"><span>${i+1}</span><span class="who">${q(r.name||'ANONYMOUS')}${r.company?' - '+q(r.company):''}${r.difficulty&&settings.mode!=='show'?' ['+q(r.difficulty)+']':''}</span><span class="sc">${r.score}</span><span class="act">DELETE</span></button>`).join('')
+      : '<div class="eb-msg">NO SCORES ON THIS BOARD</div>';
+    $('ebList').querySelectorAll('.eb-row').forEach(b=>{
+      b.addEventListener('click', e=>{ e.stopPropagation(); const bs=menuButtons(); menuFocus=bs.indexOf(b); refreshFocus(); onAction('ebDel', b); });
+    });
+    refreshFocus();
+  }
+  function ebLabels(){ $('ebList').querySelectorAll('.eb-row').forEach(b=>{ const k=+b.dataset.k; b.classList.toggle('armed', k===ebArmed); b.querySelector('.act').textContent=k===ebArmed?'A = YES':'DELETE'; }); }
+  async function ebDelete(k){
+    const r=ebRows[k]; if(!r) return;
+    if(ebArmed!==k){ ebArmed=k; ebLabels(); sfx.warn(); $('ebMsg').textContent=`DELETE "${r.name}" (${r.score})? PRESS A AGAIN`; return; }
+    try{
+      await Board.store.remove(r);
+      sfx.cover(); $('ebMsg').textContent=`DELETED "${r.name}"`;
+      const keep=menuFocus; await renderEditBoard(); menuFocus=keep; refreshFocus();
+    }catch(err){
+      ebArmed=-1; ebLabels();
+      if(err.message==='SIGNIN'){ $('ebSign').classList.remove('hidden'); $('ebMsg').textContent='SIGN IN WITH THE ADMIN ACCOUNT TO DELETE ONLINE SCORES (KEYBOARD)'; $('ebEmail').focus(); }
+      else { sfx.warn(); $('ebMsg').textContent=err.message; }
+    }
+  }
+  async function ebSignIn(){
+    const email=$('ebEmail').value.trim(), pass=$('ebPass').value;
+    if(!email||!pass){ $('ebMsg').textContent='ENTER THE ADMIN EMAIL AND PASSWORD'; return; }
+    $('ebMsg').textContent='SIGNING IN...';
+    try{ await Admin.signIn(email, pass); $('ebPass').value=''; $('ebSign').classList.add('hidden'); document.activeElement&&document.activeElement.blur&&document.activeElement.blur();
+         sfx.cover(); $('ebMsg').textContent='SIGNED IN. PICK A SCORE TO DELETE.'; await renderEditBoard(); }
+    catch(err){ sfx.warn(); $('ebMsg').textContent=err.message; }
+  }
+  $('ebPass').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); ebSignIn(); } });
   function closeAdmin(){
     const p=preAdmin||{state:'TITLE'};
     if(p.state==='TITLE'||!p.overlay){ goTitle(); return; }
@@ -4257,7 +4388,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
 
   // Walk-away protection: return to the attract screen if nobody touches the controls.
   function updateIdle(now){
-    if(!settings.idleReset || state==='TITLE' || state==='ADMIN' || state==='PIN' || (state==='BOARD' && boardFromTitle)) return;   // a board opened from the title stays up for display
+    if(!settings.idleReset || state==='TITLE' || state==='ADMIN' || state==='EDITBOARD' || state==='PIN' || (state==='BOARD' && boardFromTitle)) return;   // a board opened from the title stays up for display
     const idle=(now-lastInputAt)/1000;
     // screens in the middle of a run get time to read (site briefings are long); menus reset quickly
     const limit=['BRIEFING','CLEAR','RESULTS','ENDING','ENTRY','CONTROLS'].includes(state) ? IDLE_RUN_SCREEN_SEC
