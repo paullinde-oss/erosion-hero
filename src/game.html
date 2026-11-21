@@ -2111,10 +2111,10 @@
       }
     }
   }
-  // reload bar under each hero: fills while reloading, flashes green when the next stake is ready
+  // reload bar above each hero's head: fills while reloading, flashes green when the next stake is ready
   function drawReloadBars(){
     for(const p of P){
-      const o=p.o, w=16, x=Math.round(o.x+o.w/2-w/2), y=Math.round(o.y+o.h+2);
+      const o=p.o, w=16, x=Math.round(o.x+o.w/2-w/2), y=Math.max(2, Math.round(o.y+o.h-HERO_H-11));   // just above the 1P/2P tag
       const f=clamp(1-Math.max(0,p.reload)/STAKE_RELOAD,0,1), ready=f>=1;
       ctx.fillStyle='#0d0b08'; ctx.fillRect(x-1,y-1,w+2,4);
       ctx.fillStyle='#3a2f22'; ctx.fillRect(x,y,w,2);
