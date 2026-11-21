@@ -380,18 +380,25 @@
   .cs-cell.taken::before{ content:'1P'; position:absolute; bottom:0; right:0; font-size:calc(var(--u)*7); line-height:1; padding:calc(var(--u)*1.5) calc(var(--u)*2); background:#ff3a1a; color:#fff; }
   .cs-cell.shake{ animation:csShake .3s; }
   /* 2 players pick at the same time: red 1P cursor, blue 2P cursor, each on its own controller */
-  #charScreen.duo .cs-portrait, #charScreen.duo .cs-name, #charScreen.duo .cs-line{ display:none; }
-  .cs-duo{ display:none; flex-direction:column; gap:calc(var(--u)*4); width:100%; }
-  #charScreen.duo .cs-duo{ display:flex; }
-  .duo-card{ display:flex; align-items:center; gap:calc(var(--u)*4); padding:calc(var(--u)*2); border:calc(var(--u)*1.5) solid; background:rgba(0,0,0,.25); }
-  .duo-card.k0{ border-color:#ff3a1a; } .duo-card.k1{ border-color:#3a8dff; }
-  .duo-por{ flex:0 0 calc(var(--u)*46); height:calc(var(--u)*46); background:radial-gradient(circle at 50% 40%,#3a5ad8 0%,#1d2f8a 70%); display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
-  .duo-por img{ width:100%; height:100%; image-rendering:pixelated; }
-  .duo-por .cs-mystery{ font-size:calc(var(--u)*20); } .duo-por .cs-ico{ width:calc(var(--u)*26); height:calc(var(--u)*20); }
-  .duo-info{ display:flex; flex-direction:column; gap:calc(var(--u)*3); text-align:left; min-width:0; }
-  .duo-tag{ font-size:calc(var(--u)*6); } .duo-card.k0 .duo-tag{ color:#ff6a4a; } .duo-card.k1 .duo-tag{ color:#6aa8ff; }
-  .duo-name{ font-size:calc(var(--u)*9); color:#fff3c4; white-space:nowrap; }
-  .duo-state{ font-size:calc(var(--u)*5); color:#dfe8ff; } .duo-state.ready{ color:#5ac24a; }
+  /* 2 players: Player 1's card on the left, Player 2's on the right facing inward, grid in the middle */
+  .cs-side{ display:none; }
+  #charScreen.duo .cs-hero{ display:none; }
+  #charScreen.duo .cs-body{ gap:calc(var(--u)*5); justify-content:center; }
+  #charScreen.duo .cs-right{ flex:0 0 auto; }
+  #charScreen.duo .cs-help{ white-space:nowrap; font-size:calc(var(--u)*5); }
+  #charScreen.duo .cs-wide{ font-size:calc(var(--u)*4.5); gap:calc(var(--u)*2); }
+  #charScreen.duo .cs-side{ display:flex; flex:0 0 calc(var(--u)*62); width:calc(var(--u)*62); min-width:0; flex-direction:column; align-items:center; gap:calc(var(--u)*3); overflow:hidden; }
+  #charScreen.duo .cs-grid{ --cs:32; }
+  #charScreen.duo .cs-grid.tall{ --cs:27; }
+  .side-tag{ font-size:calc(var(--u)*4.5); line-height:1.5; text-align:center; } .cs-side.k0 .side-tag{ color:#ff6a4a; } .cs-side.k1 .side-tag{ color:#6aa8ff; }
+  .side-por{ width:calc(var(--u)*62); height:calc(var(--u)*62); background:radial-gradient(circle at 50% 40%,#3a5ad8 0%,#1d2f8a 70%); border:calc(var(--u)*2) solid; box-shadow:0 0 0 calc(var(--u)*1) var(--ink); display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
+  .cs-side.k0 .side-por{ border-color:#ff3a1a; } .cs-side.k1 .side-por{ border-color:#3a8dff; }
+  .side-por img{ width:100%; height:100%; image-rendering:pixelated; animation:csIn .25s ease-out; }
+  .cs-side.k1 .side-por img{ transform:scaleX(-1); }   /* Player 2 faces inward */
+  .side-por .cs-mystery{ font-size:calc(var(--u)*28); } .side-por .cs-ico{ width:calc(var(--u)*34); height:calc(var(--u)*26); }
+  .side-name{ font-size:calc(var(--u)*9); color:#fff3c4; text-shadow:calc(var(--u)*1.5) calc(var(--u)*1.5) 0 #b1291f, calc(var(--u)*1) calc(var(--u)*1) 0 var(--ink); white-space:nowrap; }
+  .side-line{ font-size:calc(var(--u)*5); line-height:1.6; color:#dfe8ff; text-align:center; min-height:4.8em; }
+  .side-state{ font-size:calc(var(--u)*6); color:#dfe8ff; } .side-state.ready{ color:#5ac24a; }
   .cs-cell.sel1, .cs-wide.sel1{ outline:calc(var(--u)*2) solid #ff3a1a; outline-offset:calc(var(--u)*1); animation:csBlink .5s steps(1) infinite; }
   .cs-cell.sel1::after{ content:'1P'; position:absolute; top:0; left:0; font-size:calc(var(--u)*7); line-height:1; padding:calc(var(--u)*1.5) calc(var(--u)*2); background:#ff3a1a; color:#fff; }
   .cs-cell.sel2, .cs-wide.sel2{ box-shadow:0 0 0 calc(var(--u)*1) var(--ink), 0 0 0 calc(var(--u)*3) #3a8dff; }
@@ -525,16 +532,17 @@
   <div class="overlay hidden" id="charScreen">
     <div class="cs-head" id="csHead">SELECT YOUR CREW</div>
     <div class="cs-body">
+      <div class="cs-side k0" id="csSide0"></div>
       <div class="cs-hero">
         <div class="cs-portrait" id="csPortrait"></div>
         <div class="cs-name" id="csName">DARYL</div>
         <div class="cs-line" id="csLine"></div>
-        <div class="cs-duo" id="csDuo"></div>
       </div>
       <div class="cs-right">
         <div class="cs-grid" id="csGrid"></div>
         <div class="cs-help" id="csHelp"><b>A</b> SELECT &middot; <b>B</b> BACK</div>
       </div>
+      <div class="cs-side k1" id="csSide1"></div>
     </div>
   </div>
 
@@ -2269,17 +2277,17 @@
       const at=`style="grid-row:${e.r+1};grid-column:${e.col+1} / span ${e.span}"`;
       if(e.kind==='hero') return `<button class="cs-cell" data-i="${i}" ${at}><img src="${e.c.face}" alt="${e.c.name}"></button>`;
       if(e.kind==='empty') return `<div class="cs-cell empty" ${at}>?</div>`;
-      if(e.kind==='back') return `<button class="cs-wide" data-i="${i}" ${at}>&lt; BACK TO CREW</button>`;
+      if(e.kind==='back') return `<button class="cs-wide" data-i="${i}" ${at}>&lt; ${coop?'CREW':'BACK TO CREW'}</button>`;
       return (settings.secretHeroes||duel)
-        ? `<button class="cs-wide" data-i="${i}" ${at}>${KEY_SVG}UNLOCK SECRET HEROES</button>`
-        : `<button class="cs-wide locked" data-i="${i}" ${at}>${LOCK_SVG}SECRET HEROES LOCKED</button>`;
+        ? `<button class="cs-wide" data-i="${i}" ${at}>${KEY_SVG}${coop?'SECRET HEROES':'UNLOCK SECRET HEROES'}</button>`
+        : `<button class="cs-wide locked" data-i="${i}" ${at}>${LOCK_SVG}${coop?'LOCKED':'SECRET HEROES LOCKED'}</button>`;
     };
     $('csGrid').innerHTML=csEntries.map(cell).join('');
     $('csGrid').classList.toggle('tall', Math.max(...csEntries.map(e=>e.r))>=4);   // 5 rows (cheat-code heroes): smaller tiles
-    $('csHead').textContent=csView==='crew'?(duel?'STAKES ONLY: PICK HEROES':coop?'PICK YOUR HEROES':'SELECT YOUR CREW'):'SECRET HEROES';
+    $('csHead').textContent=csView==='crew'?(duel?'STAKES ONLY':coop?'PICK YOUR HEROES':'SELECT YOUR CREW'):'SECRET HEROES';
     $('charScreen').classList.toggle('secret', csView==='secret');
     $('charScreen').classList.remove('p2');
-    $('csHelp').innerHTML=coop ? 'BOTH PICK AT ONCE &middot; <b>A</b> READY &middot; <b>B</b> UNDO' : '<b>A</b> SELECT &middot; <b>B</b> BACK';
+    $('csHelp').innerHTML=coop ? '<b>A</b> READY &middot; <b>B</b> UNDO' : '<b>A</b> SELECT &middot; <b>B</b> BACK';
     $('csGrid').querySelectorAll('[data-i]').forEach(el=>{
       el.addEventListener('click', e=>{ e.stopPropagation(); const i=+el.dataset.i;
         if(coop){ const p=P[0]; if(p.cs.ready||csPicked) return; if(i===p.cs.idx){ coopActivate(p); renderCharSel(); } else { p.cs.idx=i; renderCharSel(); sfx.move(); } return; }
@@ -2293,11 +2301,17 @@
       $('csGrid').querySelectorAll('[data-i]').forEach(el=>{ const i=+el.dataset.i;
         el.classList.remove('sel','picked','taken');
         P.forEach((p,k)=>{ el.classList.toggle('sel'+(k+1), i===p.cs.idx); el.classList.toggle('lock'+(k+1), i===p.cs.idx && p.cs.ready); }); });
-      $('csDuo').innerHTML=P.map((p,k)=>{
+      P.forEach((p,k)=>{
         const e=csEntries[p.cs.idx]||{}, c=p.cs.ready?p.hero:(e.kind==='hero'?e.c:null);
-        const pic=c?`<img src="${c.portrait}" alt="">`:`<div class="cs-mystery">${e.kind==='back'?'&lt;':KEY_SVG}</div>`;
-        return `<div class="duo-card k${k}"><div class="duo-por">${pic}</div><div class="duo-info"><span class="duo-tag">${k+1}P &middot; ${escapeHtml(srcLabel(p.src))}</span><span class="duo-name">${c?escapeHtml(c.name):'?'}</span><span class="duo-state${p.cs.ready?' ready':''}">${p.cs.ready?'READY!':'PICKING...'}</span></div></div>`;
-      }).join('');
+        const open=e.kind==='back'||settings.secretHeroes||duel;
+        const pic=c?`<img src="${c.portrait}" alt="${escapeHtml(c.name)}">`:`<div class="cs-mystery">${e.kind==='back'?'&lt;':open?KEY_SVG:LOCK_SVG}</div>`;
+        const name=c?c.name:e.kind==='back'?'CREW':open?'SECRET':'LOCKED';
+        const line=c?c.line:e.kind==='back'?'Back to the crew.':open?'Legends of the game. Press A to meet them.':'Secret heroes are locked for this event.';
+        const key=(c?c.id:e.kind)+'|'+p.cs.ready+'|'+p.src, el=$('csSide'+k);
+        if(el.dataset.key===key) return;   // only redraw when it changes, so the slide-in plays once
+        el.dataset.key=key;
+        el.innerHTML=`<span class="side-tag">${k+1}P<br>${escapeHtml(srcLabel(p.src))}</span><div class="side-por">${pic}</div><span class="side-name">${escapeHtml(name)}</span><span class="side-line">${escapeHtml(line)}</span><span class="side-state${p.cs.ready?' ready':''}">${p.cs.ready?'READY!':'PICKING...'}</span>`;
+      });
       return;
     }
     const e=csEntries[csIdx];
