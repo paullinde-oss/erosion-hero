@@ -6,11 +6,12 @@ from PIL import Image
 root = pathlib.Path(__file__).resolve().parent.parent
 cid, kind, raw = sys.argv[1], sys.argv[2], sys.argv[3]
 TOL = sys.argv[4] if len(sys.argv) > 4 else "120"   # lower for pale pink/purple outfits
+GREEN = len(sys.argv) > 5 and sys.argv[5] == "green"   # green-screen sheet (pink outfits): no magenta cleanup
 out = root / "art" / "crew" / cid / kind
 shutil.rmtree(out, ignore_errors=True)
 args = ["--frames", "8", "--height", "48", "--cell", "28x48"] if kind == "walk" else ["--frames", "4", "--height", "38"]
-subprocess.run([sys.executable, str(root / "tools" / "sprite_cut.py"), raw, str(out), *args, "--pink", "--tol", TOL], check=True)
-for f in out.glob("frame*.png"):
+subprocess.run([sys.executable, str(root / "tools" / "sprite_cut.py"), raw, str(out), *args, "--green" if GREEN else "--pink", "--tol", TOL], check=True)
+for f in ([] if GREEN else out.glob("frame*.png")):
     im = Image.open(f).convert("RGBA"); px = im.load(); W, H = im.size
     for y in range(H):
         for x in range(W):

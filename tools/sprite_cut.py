@@ -34,6 +34,7 @@ def bg_color(img):
     return tuple(sorted(c[i] for c in cs)[1] for i in range(3))
 
 PINK = False   # set by --pink
+GREEN = False  # set by --green: green-screen sheets for pink outfits (keeps every pink, keys out green)
 
 def key_out(img, tol):
     img = img.convert("RGBA"); px = img.load(); bg = bg_color(img)
@@ -44,6 +45,7 @@ def key_out(img, tol):
             # magenta fringe: strongly red+blue with little green also counts as background
             fringe = bg[0] > 200 and bg[2] > 200 and bg[1] < 80 and r - g > 55 and b - g > 55
             if PINK: fringe = fringe and r > 200 and b > 170 and g < 70
+            if GREEN: fringe = g > 140 and g - r > 70 and g - b > 70
             if d < tol or fringe: px[x, y] = (0, 0, 0, 0)
     return img
 
@@ -61,7 +63,8 @@ def snap(img):
             for y in range(H):
                 for x in range(W):
                     r, g, b, al = sp[x, y]
-                    if not al or not (r - g > 45 and b - g > 30): continue
+                    tinted = (g - max(r, b) > 35) if GREEN else (r - g > 45 and b - g > 30)
+                    if not al or not tinted: continue
                     if any(not (0 <= x+dx < W and 0 <= y+dy < H) or not sp[x+dx, y+dy][3] or sp[x+dx, y+dy][:3] == (34, 26, 22)
                            for dx, dy in ((1,0),(-1,0),(0,1),(0,-1))):
                         px[x, y] = (34, 26, 22, 255) if depth == 0 else (0, 0, 0, 0)
@@ -79,7 +82,9 @@ def defringe(img):
     for y in range(h):
         for x in range(w):
             r, g, b, a = px[x, y]
-            if a and r - g > 40 and b - g > 40 and (not PINK or (r > 190 and b > 160 and g < 80)): px[x, y] = (0, 0, 0, 0)
+            if GREEN:
+                if a and g > 140 and g - r > 70 and g - b > 70: px[x, y] = (0, 0, 0, 0)
+            elif a and r - g > 40 and b - g > 40 and (not PINK or (r > 190 and b > 160 and g < 80)): px[x, y] = (0, 0, 0, 0)
     return img
 
 def shrink(img, height):
@@ -96,8 +101,9 @@ def main():
     ap.add_argument("--cell", default="")
     ap.add_argument("--tol", type=int, default=120)
     ap.add_argument("--pink", action="store_true")
+    ap.add_argument("--green", action="store_true")
     a = ap.parse_args()
-    global PINK; PINK = a.pink
+    global PINK, GREEN; PINK = a.pink or a.green; GREEN = a.green
     img = key_out(Image.open(a.inp).convert("RGB"), a.tol)
     if a.frames == 1:
         snap(shrink(img, a.height)).save(a.out); return

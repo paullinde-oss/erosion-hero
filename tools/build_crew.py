@@ -33,9 +33,17 @@ CREW = [  # id, name, line shown on the select screen
 FACE_BOX = {"oprah": (0.22, 0.29, 0.78, 0.85)}  # her portrait has a speech bubble up top
 def uri(img):
     b = io.BytesIO(); img.save(b, "PNG"); return "data:image/png;base64," + base64.b64encode(b.getvalue()).decode()
-PINK_OUTFITS = {"taylor"}   # pink costumes: key out only near-pure magenta so the sequins survive
-def key_out(img, strict=False):
+PINK_OUTFITS = {"taylor"}
+GREEN_SCREEN = {"brett"}   # pink outfit drawn on a green background: key out the green instead of magenta   # pink costumes: key out only near-pure magenta so the sequins survive
+def key_out(img, strict=False, green=False):
     img = img.convert("RGBA"); px = img.load()
+    if green:
+        for y in range(img.height):
+            for x in range(img.width):
+                r, g, b, a = px[x, y]
+                if g > 140 and g - r > 70 and g - b > 70: px[x, y] = (0, 0, 0, 0)
+                elif g - max(r, b) > 35: px[x, y] = (min(255, r+10), max(r, b), b, a)   # soften green-tinted edge pixels
+        return img
     for y in range(img.height):
         for x in range(img.width):
             r, g, b, a = px[x, y]
@@ -55,7 +63,7 @@ for cid, name, line in CREW:
     d = root / "art" / "crew" / cid
     w = [Image.open(d / "walk" / f"frame{i}.png") for i in range(1, 9)]
     lay = [Image.open(d / "lay" / f"frame{i}.png") for i in range(1, 5)]
-    por = key_out(Image.open(root / "art" / "canva" / f"portrait_{cid}_raw.png"), cid in PINK_OUTFITS)
+    por = key_out(Image.open(root / "art" / "canva" / f"portrait_{cid}_raw.png"), cid in PINK_OUTFITS, cid in GREEN_SCREEN)
     por = por.crop(por.getbbox())
     side = max(por.size); sq = Image.new("RGBA", (side, side)); sq.alpha_composite(por, ((side - por.width) // 2, side - por.height))
     portrait = sq.resize((128, 128), Image.LANCZOS)
