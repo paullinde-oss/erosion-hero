@@ -35,7 +35,7 @@ FACE_BOX = {"oprah": (0.22, 0.29, 0.78, 0.85)}  # her portrait has a speech bubb
 def uri(img):
     b = io.BytesIO(); img.save(b, "PNG"); return "data:image/png;base64," + base64.b64encode(b.getvalue()).decode()
 PINK_OUTFITS = {"taylor"}
-GREEN_SCREEN = {"brett"}   # pink outfit drawn on a green background: key out the green instead of magenta   # pink costumes: key out only near-pure magenta so the sequins survive
+GREEN_SCREEN = {"brett", "serena"}   # drawn on a green background (pink/red outfits): key out the green instead of magenta
 def key_out(img, strict=False, green=False):
     img = img.convert("RGBA"); px = img.load()
     if green:
