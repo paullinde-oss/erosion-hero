@@ -8,7 +8,7 @@ usage: pixelize.py IN OUT --size 32 --ramps Dirt,Outline [--seamless]
 import argparse, pathlib, re
 from PIL import Image, ImageFilter, ImageOps, ImageEnhance
 
-GPL = pathlib.Path(__file__).resolve().parent.parent / "art-kit" / "erosion-hero.gpl"
+GPL = pathlib.Path(__file__).resolve().parent / "erosion-hero.gpl"
 
 def palette(ramps=None):
     out = []

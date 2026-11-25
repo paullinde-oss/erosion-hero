@@ -19,7 +19,7 @@ spec = importlib.util.spec_from_file_location("pz", pathlib.Path(__file__).resol
 
 def load_palette():
     import re
-    gpl = pathlib.Path(__file__).resolve().parent.parent / "art-kit" / "erosion-hero.gpl"
+    gpl = pathlib.Path(__file__).resolve().parent / "erosion-hero.gpl"
     out = []
     for line in gpl.read_text().splitlines()[5:]:
         m = re.match(r"\s*(\d+)\s+(\d+)\s+(\d+)", line)

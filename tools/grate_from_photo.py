@@ -26,7 +26,7 @@ spec = importlib.util.spec_from_file_location("sc", pathlib.Path(__file__).resol
 # palette: grays, dirt and outline browns only
 import re
 pal = []
-for line in (root / "art-kit/erosion-hero.gpl").read_text().splitlines()[5:]:
+for line in (root / "tools/erosion-hero.gpl").read_text().splitlines()[5:]:
     m = re.match(r"\s*(\d+)\s+(\d+)\s+(\d+)\s+(.*)", line)
     if m and m.group(4).rsplit(" ", 1)[0] in ("Grays", "Dirt", "Outline"):
         pal.append(tuple(int(m.group(i)) for i in (1, 2, 3)))
