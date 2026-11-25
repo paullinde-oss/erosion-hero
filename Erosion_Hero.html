@@ -98,7 +98,10 @@
   #boardScreen .lb-pager.back{ flex-direction:row-reverse; }
   .lb-pager.back svg{ transform:scaleX(-1); }
   .lb.p2 li:nth-child(n) .rk{ color:var(--muted); }
-  #boardScreen{ justify-content:safe center; overflow-y:auto; padding-top:calc(var(--u)*6); padding-bottom:calc(var(--u)*6); }
+  #boardScreen{ padding-top:calc(var(--u)*6); padding-bottom:calc(var(--u)*6); }
+  /* never a scrollbar: an overlay that is too tall for the screen shrinks its panel to fit (fitOverlay) */
+  .overlay{ overflow:hidden; }
+  .eb-list{ scrollbar-width:none; } .eb-list::-webkit-scrollbar{ display:none; }
   #boardScreen .panel{ gap:calc(var(--u)*4); padding:calc(var(--u)*7) calc(var(--u)*8); }
   #boardScreen .lb{ gap:calc(var(--u)*1); }
   #boardScreen .lb li{ padding:calc(var(--u)*1.5) calc(var(--u)*3); gap:calc(var(--u)*3); }
@@ -1518,7 +1521,20 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     currentOverlay=id?$(id):null;
     menuFocus=0;
     refreshFocus();
+    fitOverlay();
   }
+  // Shrink the open panel if it is taller (or wider) than the screen, instead of ever showing a scrollbar.
+  function fitOverlay(){
+    const ov=currentOverlay; if(!ov) return;
+    const pn=ov.querySelector(':scope > .panel'); if(!pn) return;
+    pn.style.transform=''; pn.style.transformOrigin='center center';
+    const cs=getComputedStyle(ov);
+    const availH=ov.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+    const availW=ov.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
+    const k=Math.min(1, availH/pn.offsetHeight, availW/pn.offsetWidth);
+    if(k<0.999) pn.style.transform=`scale(${k})`;
+  }
+  window.addEventListener('resize', ()=>requestAnimationFrame(fitOverlay));
   function hideAll(){ show(null); }
   function menuButtons(){
     if(!currentOverlay) return [];
@@ -2713,6 +2729,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     b.classList.toggle('back', boardPage===1);
     b.querySelector('span').textContent=boardPage===1?'1-10':'11-20';
     b.setAttribute('aria-label', boardPage===1?'Top 10':'Ranks 11 to 20');
+    fitOverlay();
   }
   async function refreshTitleScores(){
     const top=await Board.top(5);
@@ -3434,6 +3451,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     const q=v=>escapeHtml(v==null?'':String(v));
     $('ebList').innerHTML=ebRows.length ? ebRows.map((r,i)=>`<button class="btn eb-row" data-act="ebDel" data-k="${i}"><span>${i+1}</span><span class="who">${q(r.name||'ANONYMOUS')}${r.company?' - '+q(r.company):''}${r.difficulty&&settings.mode!=='show'?' ['+q(r.difficulty)+']':''}</span><span class="sc">${r.score}</span><span class="act">DELETE</span></button>`).join('')
       : '<div class="eb-msg">NO SCORES ON THIS BOARD</div>';
+    requestAnimationFrame(fitOverlay);
     $('ebList').querySelectorAll('.eb-row').forEach(b=>{
       b.addEventListener('click', e=>{ e.stopPropagation(); const bs=menuButtons(); menuFocus=bs.indexOf(b); refreshFocus(); onAction('ebDel', b); });
     });
