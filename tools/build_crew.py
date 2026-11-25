@@ -23,6 +23,7 @@ CREW = [  # id, name, line shown on the select screen
     ("rosie", "ROSIE", "We can do it! No slope too steep, no storm too big."),
     ("jim", "JIM", "Founder of BMP Supplies. Mad scientist. Cold Belikin in hand."),
     ("brett", "BRETT", "Excellence on every slope. The best there is at laying blankets."),
+    ("serena", "SERENA", "Twenty-three titles. Zero unforced erosion."),
     ("taylor", "TAYLOR", "Shakes off the silt. Never ever getting washed out again."),
     ("doug", "DOUG", "Hail Mary in a rainstorm? He's done it before."),
     ("hogan", "HOGAN", "Cup your ear, brother. Hear that? The slope says thanks."),
