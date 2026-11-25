@@ -3191,16 +3191,28 @@
   const TE_CHARSET='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ';
   const TE_SPACE=TE_CHARSET.length-1;
   let textEntry=null;
+  // Earlier steps of the current save (name -> company ...), so B on an empty entry can step back through them.
+  let teStack=[];
   function openTextEntry(label,step,maxLen,onDone){
+    if(state!=='ENTRY') teStack=[];   // a new save starts from the results screen
     const chars=new Array(maxLen).fill(TE_SPACE);
     chars[0]=0;
-    textEntry={maxLen,chars,cursor:0,onDone};
-    $('teTitle').textContent=label;
-    $('teKicker').textContent=step;
+    textEntry={label,step,maxLen,chars,cursor:0,onDone};
+    showTextEntry();
+  }
+  function showTextEntry(){
+    $('teTitle').textContent=textEntry.label;
+    $('teKicker').textContent=textEntry.step;
     $('teMsg').textContent='';
     state='ENTRY';
     show('entryScreen');
     renderTextEntry();
+  }
+  // B / Backspace with nothing typed: back to the previous step, or out to the results screen
+  function teExit(){
+    sfx.select();
+    if(teStack.length){ textEntry=teStack.pop(); showTextEntry(); return; }
+    textEntry=null; state='RESULTS'; show('resultsScreen'); refreshFocus();
   }
   function renderTextEntry(){
     if(!textEntry) return;
@@ -3228,6 +3240,7 @@
   }
   function teBack(clear){
     if(!textEntry) return;
+    if(clear && textEntry.cursor===0 && textEntry.chars.every((c,i)=>i===0||c===TE_SPACE)) return teExit();
     if(clear && textEntry.cursor<textEntry.maxLen && textEntry.chars[textEntry.cursor]!==TE_SPACE){
       textEntry.chars[textEntry.cursor]=TE_SPACE;
     } else {
@@ -3253,6 +3266,7 @@
       sfx.hurt(); renderTextEntry(); return;
     }
     const cb=textEntry.onDone;
+    teStack.push(Object.assign({}, textEntry, {chars:textEntry.chars.slice()}));   // so B can come back to this step
     textEntry=null;
     sfx.cover();
     cb(value);
