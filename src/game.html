@@ -272,8 +272,13 @@
   #pinScreen .panel.shake{ animation:csShake .3s; }
 
   /* ---------- Briefing ---------- */
-  .brief-tips{ display:flex; flex-direction:column; gap:calc(var(--u)*4); width:100%; text-align:left; }
-  #briefScreen .panel{ gap:calc(var(--u)*5); padding:calc(var(--u)*8) calc(var(--u)*10); }
+  .brief-chips{ display:flex; gap:calc(var(--u)*8); justify-content:center; }
+  .brief-chips .chip{ display:flex; align-items:center; gap:calc(var(--u)*3); font-size:calc(var(--u)*6); color:#fff3c4; white-space:nowrap; }
+  .brief-chips .chip img{ width:calc(var(--u)*12); height:calc(var(--u)*12); object-fit:contain; image-rendering:pixelated; }
+  .brief-demo{ position:static; width:calc(var(--u)*128); height:calc(var(--u)*64); image-rendering:pixelated; border:calc(var(--u)*1) solid var(--panel-line); background:#3f6530; }
+  .brief-bar{ width:calc(var(--u)*128); height:calc(var(--u)*2); background:#3a2f22; }
+  .brief-bar div{ height:100%; width:0; background:var(--hazard); }
+  #briefScreen .panel{ gap:calc(var(--u)*4); padding:calc(var(--u)*7) calc(var(--u)*10); width:auto; }
   #briefScreen h2{ font-size:calc(var(--u)*12); }
   .tip{ display:flex; align-items:center; gap:calc(var(--u)*7); font-size:calc(var(--u)*6); line-height:1.6; }
   .tip .ico{
@@ -562,11 +567,12 @@
   <!-- SITE BRIEFING -->
   <div class="overlay dim hidden" id="briefScreen">
     <div class="panel hazard">
-      <div class="kicker" id="briefKicker">SITE 1 OF 5</div>
+      <div class="kicker" id="briefKicker">SITE 1 OF 7</div>
       <h2 id="briefName">RESIDENTIAL LOT</h2>
       <div class="goal" id="briefGoal"></div>
-      <div class="brief-tips" id="briefTips"></div>
-      <div class="menu"><button class="btn" data-act="briefGo">START</button></div>
+      <canvas class="brief-demo" id="briefDemo" width="128" height="64"></canvas>
+      <div class="brief-chips" id="briefTips"></div>
+      <div class="brief-bar"><div id="briefBar"></div></div>
     </div>
   </div>
 
@@ -2546,16 +2552,103 @@
     levelIdx=siteIdx||0;
     beginSite();
   }
+  // Site title card: name, a few-word goal, a short looping demo of what's new here, two icon chips.
+  // It moves on by itself after BRIEF_SEC; A / Start / a tap goes straight away.
+  const BRIEF_SEC=4.5;
+  const BRIEF={
+    'RESIDENTIAL LOT': {goal:'Blanket the eroding soil', demo:'yard',  chips:[['eroding','HOLD #A'],['insp','DODGE HIS LIGHT']]},
+    'HILLSIDE GRADING':{goal:'Slopes slide you downhill', demo:'slope', chips:[['slope','SLOPES SLIDE'],['eroding','HOLD #A']]},
+    'DETENTION POND':  {goal:'Red flashing = washing out', demo:'pond', chips:[['eroding','RED FIRST'],['insp','DODGE HIS LIGHT']]},
+    'MAIN STREET':     {goal:'Cover every storm drain', demo:'road',  chips:[['basin','HOLD #A'],['car','WATCH FOR !']]},
+    'UPHILL STREET':   {goal:'Catch drains before they pass', demo:'uphill', chips:[['basin','HOLD #A'],['upcar','2-WAY TRAFFIC']]},
+    'LAKESHORE':       {goal:'Follow the dotted line', demo:'curtain', chips:[['boat','ONE PASS'],['boom','MATCH THE PLAN']]},
+    'RIVERBANK':       {goal:'Fight the current', demo:'current', chips:[['boat','HOLD UP'],['boom','MATCH THE PLAN']]}
+  };
+  const CHIP_ICON={eroding:TILE_SRC.eroding, slope:TILE_SRC.slope, insp:SPRITE_SRC.inspDown[0], basin:SPRITE_SRC.basinOpen,
+                   car:SPRITE_SRC.cars[0].src, upcar:SPRITE_SRC.up.cars[0].src, boat:SPRITE_SRC.boat, boom:SPRITE_SRC.boom};
+  const SLOPE_IMG=mkImg(TILE_SRC.slope);
+  let briefT=0, briefCard=null, briefCtx=null;
   function beginSite(){
     loadLevel(levelIdx);
     const lvl=LEVELS[levelIdx];
-    $('briefKicker').textContent=`SITE ${levelIdx+1} OF ${LEVELS.length} · ${settings.mode==='show'?'CONFERENCE':'PUBLIC: HARD'}`;
+    briefCard=BRIEF[lvl.name]||{goal:lvl.goal, demo:lvl.type==='road'?'road':lvl.type==='curtain'?'curtain':'yard', chips:[]};
+    const act=settings.mode==='show'?'A':document.body.classList.contains('touch-mode')?'LAY':'SPACE';
+    $('briefKicker').textContent=`SITE ${levelIdx+1} OF ${LEVELS.length}`;
     $('briefName').textContent=lvl.name;
-    $('briefGoal').textContent=lvl.goal+(coop && lvl.type==='curtain'?` ${driverP().i+1}P ${driverP().hero.name} DRIVES THIS BOAT!`:'');
-    $('briefTips').innerHTML=lvl.tips.map(t=>`<div class="tip"><span class="ico"><img src="${t.icon}" alt=""></span><span>${escapeHtml(t.text)}</span></div>`).join('');
+    $('briefGoal').textContent=briefCard.goal+(coop && lvl.type==='curtain'?` \u00b7 ${driverP().i+1}P DRIVES`:'');
+    $('briefTips').innerHTML=briefCard.chips.map(([ic,txt])=>`<div class="chip"><img src="${CHIP_ICON[ic]}" alt=""><span>${escapeHtml(txt.replace('#A',act))}</span></div>`).join('');
+    briefCtx=$('briefDemo').getContext('2d'); briefCtx.imageSmoothingEnabled=false;
+    briefT=0; drawBriefDemo(0); $('briefBar').style.width='0%';
     state='BRIEFING';
     show('briefScreen');
     Snd.play(lvl.type);
+  }
+  function updateBrief(dt){
+    briefT+=dt; drawBriefDemo(briefT);
+    $('briefBar').style.width=Math.min(100, briefT/BRIEF_SEC*100)+'%';
+    if((briefT>0.4 && (pressed.action||pressed.start)) || briefT>=BRIEF_SEC){ sfx.go(); beginPlay(); }
+  }
+  $('briefScreen').addEventListener('click', ()=>{ if(state==='BRIEFING' && briefT>0.4){ sfx.go(); beginPlay(); } });
+  // 3-second demo loops, one per kind of site (logical 128x64 canvas)
+  function drawBriefDemo(t){
+    const c=briefCtx; if(!c || !briefCard) return;
+    const W=128, H=64, L=3, ph=t%L, k=ph/L;
+    const hero=(x,y,dir,walking)=>{ const set=dir==='up'?HERO.up:dir==='down'?HERO.down:HERO.side;
+      const img=walking?set.walk[Math.floor(t*8)%set.walk.length]:set.idle;
+      c.fillStyle='rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(x,y-1,5,2,0,0,Math.PI*2); c.fill();
+      if(dir==='left'){ c.save(); c.scale(-1,1); c.drawImage(img,-(x+HERO_W/2),y-HERO_H,HERO_W,HERO_H); c.restore(); }
+      else c.drawImage(img,x-HERO_W/2,y-HERO_H,HERO_W,HERO_H); };
+    const grass=()=>{ c.fillStyle='#4c7a3a'; c.fillRect(0,0,W,H); c.fillStyle='#3f6530'; for(let y=2;y<H;y+=6) for(let x=(y*7)%9;x<W;x+=11) c.fillRect(x,y,1,2); };
+    const lay=(px,py,p)=>{ for(let i=0;i<2;i++) if(imgReady(IMAGES.eroding)) c.drawImage(IMAGES.eroding,px+i*16,py,16,16);
+      if(p>0 && imgReady(IMAGES.blanket)){ c.save(); c.beginPath(); c.rect(px,py,32*p,16); c.clip(); for(let i=0;i<2;i++) c.drawImage(IMAGES.blanket,px+i*16,py,16,16); c.restore(); } };
+    const insp=(x,y,dirR)=>{ c.fillStyle='rgba(255,90,58,.22)'; c.beginPath(); c.moveTo(x,y-8); c.lineTo(x+(dirR?30:-30),y-18); c.lineTo(x+(dirR?30:-30),y+2); c.fill();
+      const f=WALK.inspSide[Math.floor(t*8)%WALK.inspSide.length]; if(!f) return;
+      if(!dirR){ c.save(); c.scale(-1,1); c.drawImage(f,-(x+7),y-24,14,24); c.restore(); } else c.drawImage(f,x-7,y-24,14,24); };
+    const kind=briefCard.demo;
+    if(kind==='yard' || kind==='pond'){
+      grass();
+      const px=74, py=36;
+      if(kind==='pond'){ c.fillStyle='#2f5f86'; c.fillRect(0,46,40,18); c.fillStyle='#4a7aa0'; for(let x=2;x<40;x+=8) c.fillRect(x,50+((x/8)%2)*5,4,1); }
+      const p=k<0.45?0:k<0.85?(k-0.45)/0.4:1;
+      lay(px,py,p);
+      if(kind==='pond' && p<1){ const fl=Math.floor(t*6)%2; c.fillStyle='#0d0b08'; c.fillRect(px,py-5,32,3); c.fillStyle=fl?'#ff3a1a':'#ffd23a'; c.fillRect(px+1,py-4,Math.round(30*(1-k)),1); }
+      insp(18+((Math.sin(t*1.2)+1)/2)*90, 22, Math.cos(t*1.2)>0);
+      if(k<0.45) hero(14+(k/0.45)*(px-18), py+16, 'right', true);
+      else if(k<0.85){ const d=HERO.lay.right; c.drawImage(d.img, px-d.w+10, py+16-d.h, d.w, d.h); }
+      else hero(px-6, py+16, 'down', false);
+    } else if(kind==='slope'){
+      grass();
+      for(let x=0;x<W;x+=16) for(let y=16;y<48;y+=16) if(imgReady(SLOPE_IMG)) c.drawImage(SLOPE_IMG,x,y,16,16);
+      c.fillStyle='rgba(255,240,200,.55)';   // downhill arrows
+      for(let x=8;x<W;x+=32){ const y=18+((t*24+x)%26); c.fillRect(x,y,1,1); c.fillRect(x+1,y+1,1,1); c.fillRect(x+2,y+2,1,1); c.fillRect(x+3,y+1,1,1); c.fillRect(x+4,y,1,1); }
+      const y=22+Math.min(1,k/0.8)*34;      // hero standing on the slope gets pushed down
+      hero(64, y, 'down', false);
+      if(k>0.2 && k<0.8){ c.fillStyle='rgba(255,255,255,.6)'; c.fillRect(62,y-28,1,3); c.fillRect(66,y-30,1,3); }
+    } else if(kind==='road' || kind==='uphill'){
+      const up=kind==='uphill';
+      c.fillStyle='#4c7a3a'; c.fillRect(0,0,W,H);
+      c.fillStyle='#3a3a40'; if(up) c.fillRect(32,0,64,H); else c.fillRect(0,12,W,40);
+      c.fillStyle='#b9b5aa'; if(up){ c.fillRect(30,0,2,H); c.fillRect(96,0,2,H); } else { c.fillRect(0,10,W,2); c.fillRect(0,52,W,2); }
+      c.fillStyle='#e8b923'; if(up){ for(let y=(t*30)%12-12;y<H;y+=12) c.fillRect(63,y,2,6); } else { for(let x=0;x<W;x+=14) c.fillRect(x,31,8,2); }
+      const covered=k>0.55;
+      const dx=up?33:86, dy=up?Math.min(40,k*60):38;
+      const di=covered?IMAGES.basinDonut:IMAGES.basinCovered; if(imgReady(di)) c.drawImage(di,dx,dy,12,12);
+      if(!covered){ const hx=up?44:20+(k/0.55)*(dx-26), hy=up?dy+20:dy+12; hero(hx,hy,up?'left':'right',true); }
+      else { hero(up?40:dx-2, up?dy+20:dy+12, 'down', false); c.font='8px '+FONT; c.fillStyle='#fff3c4'; c.textAlign='center'; c.fillText('+25', dx+6, dy-4-Math.round((k-0.55)*12)); c.textAlign='left'; }
+      const car=up?UP.cars[0]:CARS[0];
+      if(car && car.img){ const cw=up?16:car.w*0.8, ch=up?26:car.h*0.8;
+        if(up){ const cy=-30+k*120; c.drawImage(car.img,70,cy,cw,ch); }
+        else { const cx=W+10-k*190; c.drawImage(car.img,cx,14,cw,ch); if(cx>W-20){ c.fillStyle='#e8b923'; c.fillRect(W-8,16,6,8); c.fillStyle='#0d0b08'; c.fillRect(W-6,17,2,4); c.fillRect(W-6,22,2,1); } } }
+    } else {   // curtain / current
+      c.fillStyle='#2f5f86'; c.fillRect(0,0,W,H); c.fillStyle='#8a6a4a'; c.fillRect(0,0,W,10); c.fillStyle='#4a7aa0';
+      for(let y=16;y<H;y+=9) for(let x=((y*5+t*20)%14)-14;x<W;x+=14) c.fillRect(x,y,5,1);
+      const path=x=>24+Math.sin(x/22)*8;
+      c.fillStyle='#fff3c4'; for(let x=6;x<W-6;x+=6) c.fillRect(x,Math.round(path(x)),2,2);
+      const bx=8+k*(W-20), off=kind==='current'?Math.sin(t*3)*4:0, by=path(bx)+off;
+      c.fillStyle='#e8b923'; for(let x=8;x<bx;x+=2) c.fillRect(x,Math.round(path(x)+(kind==='current'?Math.sin((x/(W-20))*L*3)*3:0)),2,2);
+      if(kind==='current'){ c.fillStyle='rgba(255,255,255,.55)'; for(let x=10;x<W;x+=30){ const y=40+((t*18+x)%18); c.fillRect(x,y,1,4); c.fillRect(x-1,y+3,3,1); } }
+      if(imgReady(IMAGES.boat)) c.drawImage(IMAGES.boat, bx-9, by-4, 18, 7);
+    }
   }
   function beginPlay(){
     hideAll();
@@ -3124,7 +3217,9 @@
         if(menuFocus!==ebFocusWas){ ebFocusWas=menuFocus; if(ebArmed>=0){ ebArmed=-1; ebLabels(); $('ebMsg').textContent=''; } }
         if(pressed.back) closeEditBoard();
         break;
-      case 'BRIEFING': case 'PAUSED': case 'BOARD': case 'HOWTO':
+      case 'BRIEFING':
+        updateBrief(dt); break;
+      case 'PAUSED': case 'BOARD': case 'HOWTO':
         menuNav(); break;
       case 'CLEAR': case 'RESULTS':
         updateTally(dt); break;
