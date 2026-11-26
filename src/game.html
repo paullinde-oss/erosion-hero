@@ -1725,6 +1725,7 @@
   let gameTime=0;
   let grid=[], erosionTiles=[], rainProgress=0, spawnTimer=0;
   let obstacles=[], basins=[], invulnTimer=0;
+  let midDrains=0, bandHist=[];   // Main Street: drains in the middle of the road late in the round; recent traffic lines
   let basinTimer=0, obstacleTimer=0, worldScroll=0, roadDifficulty=1, truckSchedule=[], bikeCooldown=0;
   let curtainWaypoints=[], curtainNextIdx=0, curtainDeviations=[], curtainTrail=[];
   let curtainAccs=[];           // plan match % for each curtain site finished this run
@@ -2119,7 +2120,7 @@
     particles=[]; popups=[]; banner=null;
     rainProgress=0; invulnTimer=0;
     player.layProgress=0; player.layTarget=null; player.laying=false; player.facing='down'; player.moving=false;
-    siteStats={covers:0,hits:0};
+    siteStats={covers:0,hits:0}; midDrains=0; bandHist=[];
     if(lvl.type==='road' && lvl.dir==='up'){
       grid=[]; erosionTiles=[]; obstacles=[]; basins=[];
       basinTimer=1.2; obstacleTimer=2.2; truckSchedule=lvl.bmpTruckAt.slice();
@@ -3235,9 +3236,11 @@
     basinTimer-=dt;
     const activeBasins=basins.filter(b=>b.state==='active').length;
     if(basinTimer<=0 && activeBasins<lvl.basinMax){
-      const side=Math.random()<0.5?'top':'bottom';
+      // late in the round a few drains (3 at most) turn up on the center line instead of a curb
+      const side=(rainProgress>=0.6 && midDrains<3 && Math.random()<0.45)?'mid':Math.random()<0.5?'top':'bottom';
+      if(side==='mid') midDrains++;
       const w=16,h=16;
-      const y=side==='top'?ROAD_TOP:ROAD_BOTTOM-h; // in the gutter, flush against the curb
+      const y=side==='top'?ROAD_TOP:side==='bottom'?ROAD_BOTTOM-h:Math.round((ROAD_TOP+ROAD_BOTTOM)/2-h/2); // gutter, flush against the curb (or on the center line)
       basins.push({x:VIEW_W+w, y, w, h, side, state:'active'});
       basinTimer=lvl.basinSpawnInterval*(0.85+Math.random()*0.3);
     }
@@ -3259,13 +3262,25 @@
 
     // traffic: spawns off-screen right with a warning lead-in so hits always feel fair
     // traffic drives in two lanes (top and bottom half of the road), each vehicle sized to its lane
-    // each vehicle picks its own line: some hug the curb and roll right over the drains (no hiding in the gutter)
-    const laneY=(lane,h)=>{
-      const mid=(lane===0?ROAD_TOP:(ROAD_TOP+ROAD_BOTTOM)/2)+((ROAD_BOTTOM-ROAD_TOP)/2-h)/2;
-      const curb=lane===0?ROAD_TOP-Math.round(h*0.2):ROAD_BOTTOM-h;
-      return Math.random()<0.4 ? curb : lerp(mid, curb, Math.random()*0.7);
+    // each vehicle drives one of five lines, scattered: top curb, top lane, center line, bottom lane, bottom curb.
+    // Curb lines roll over the gutter drains (no hiding there). Never the same line 3 times running.
+    const BANDS=[{lane:0,w:0.15},{lane:0,w:0.25},{lane:2,w:0.2},{lane:1,w:0.25},{lane:1,w:0.15}];
+    let nextBand=-1;
+    const pickLane=()=>{
+      let i;
+      do{ let r=Math.random(); i=0; while(i<BANDS.length-1 && r>BANDS[i].w){ r-=BANDS[i].w; i++; } }
+      while(bandHist.length>=2 && bandHist[bandHist.length-1]===i && bandHist[bandHist.length-2]===i);
+      bandHist.push(i); if(bandHist.length>4) bandHist.shift();
+      nextBand=i; return BANDS[i].lane;
     };
-    const pickLane=()=>Math.random()<0.5?0:1;
+    const laneY=(lane,h)=>{
+      const half=(ROAD_BOTTOM-ROAD_TOP)/2, j=Math.random()*4-2;
+      return [ROAD_TOP-Math.round(h*0.2),                   // top curb
+              ROAD_TOP+(half-h)/2,                          // top lane
+              (ROAD_TOP+ROAD_BOTTOM)/2-h*0.72,              // straddling the center line
+              (ROAD_TOP+ROAD_BOTTOM)/2+(half-h)/2,          // bottom lane
+              ROAD_BOTTOM-h][nextBand]+(nextBand===0||nextBand===4?0:j);
+    };
     obstacleTimer-=dt;
     if(truckSchedule.length && rainProgress>=truckSchedule[0]){
       truckSchedule.shift();
@@ -3293,7 +3308,7 @@
     obstacles.sort((a,b)=>a.x-b.x);
     for(const o of obstacles){
       o.x-=o.speed*dt;
-      const ahead=obstacles.filter(a=>a!==o && a.lane===o.lane && a.x<o.x).reduce((m,a)=>(!m||a.x>m.x)?a:m,null);
+      const ahead=obstacles.filter(a=>a!==o && (a.lane===o.lane || a.lane===2 || o.lane===2) && a.x<o.x).reduce((m,a)=>(!m||a.x>m.x)?a:m,null);
       if(ahead && o.x<ahead.x+ahead.w+8) o.x=ahead.x+ahead.w+8;
     }
     for(let i=obstacles.length-1;i>=0;i--){
