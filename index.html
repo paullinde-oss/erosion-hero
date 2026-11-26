@@ -2573,13 +2573,15 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   const BRIEF={
     'RESIDENTIAL LOT': {goal:'Blanket the eroding soil', demo:'yard',  chips:[['eroding','HOLD #A'],['insp','DODGE HIS LIGHT']]},
     'HILLSIDE GRADING':{goal:'Slopes slide you downhill', demo:'slope', chips:[['slope','SLOPES SLIDE'],['eroding','HOLD #A']]},
-    'DETENTION POND':  {goal:'Red flashing = washing out', demo:'pond', chips:[['eroding','RED FIRST'],['insp','DODGE HIS LIGHT']]},
+    'DETENTION POND':  {goal:'Work around the pond', demo:'pond', chips:[['water','WATER BLOCKS YOU'],['slope','BIG SLOPE']]},
     'MAIN STREET':     {goal:'Cover every storm drain', demo:'road',  chips:[['basin','HOLD #A'],['car','WATCH FOR !']]},
     'UPHILL STREET':   {goal:'Catch drains before they pass', demo:'uphill', chips:[['basin','HOLD #A'],['upcar','2-WAY TRAFFIC']]},
     'LAKESHORE':       {goal:'Follow the dotted line', demo:'curtain', chips:[['boat','ONE PASS'],['boom','MATCH THE PLAN']]},
     'RIVERBANK':       {goal:'Fight the current', demo:'current', chips:[['boat','HOLD UP'],['boom','MATCH THE PLAN']]}
   };
-  const CHIP_ICON={eroding:TILE_SRC.eroding, slope:TILE_SRC.slope, insp:SPRITE_SRC.inspDown[0], basin:SPRITE_SRC.basinOpen,
+  const CHIP_ICON={water:(()=>{ const cv=document.createElement('canvas'); cv.width=cv.height=16; const x=cv.getContext('2d');   // small pixel water tile
+      x.fillStyle='#2f5f86'; x.fillRect(0,0,16,16); x.fillStyle='#4a7aa0'; x.fillRect(2,4,5,1); x.fillRect(9,8,5,1); x.fillRect(3,12,5,1);
+      x.fillStyle='#9fd0ff'; x.fillRect(3,4,2,1); x.fillRect(10,8,2,1); return cv.toDataURL(); })(), eroding:TILE_SRC.eroding, slope:TILE_SRC.slope, insp:SPRITE_SRC.inspDown[0], basin:SPRITE_SRC.basinOpen,
                    car:SPRITE_SRC.cars[0].src, upcar:SPRITE_SRC.up.cars[0].src, boat:SPRITE_SRC.boat, boom:SPRITE_SRC.boom};
   const SLOPE_IMG=mkImg(TILE_SRC.slope);
   let briefT=0, briefCard=null, briefCtx=null;
@@ -2623,12 +2625,17 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     if(kind==='yard' || kind==='pond'){
       grass();
       const px=74, py=36;
-      if(kind==='pond'){ c.fillStyle='#2f5f86'; c.fillRect(0,46,40,18); c.fillStyle='#4a7aa0'; for(let x=2;x<40;x+=8) c.fillRect(x,50+((x/8)%2)*5,4,1); }
+      if(kind==='pond'){ c.fillStyle='#2f5f86'; c.fillRect(6,30,52,30); c.fillStyle='#4a7aa0'; for(let x=10;x<56;x+=8) c.fillRect(x,36+((x/8)%2)*8,4,1); c.fillStyle='#6b4a2a'; c.fillRect(6,29,52,1); }
       const p=k<0.45?0:k<0.85?(k-0.45)/0.4:1;
       lay(px,py,p);
-      if(kind==='pond' && p<1){ const fl=Math.floor(t*6)%2; c.fillStyle='#0d0b08'; c.fillRect(px,py-5,32,3); c.fillStyle=fl?'#ff3a1a':'#ffd23a'; c.fillRect(px+1,py-4,Math.round(30*(1-k)),1); }
-      insp(18+((Math.sin(t*1.2)+1)/2)*90, 22, Math.cos(t*1.2)>0);
-      if(k<0.45) hero(14+(k/0.45)*(px-18), py+16, 'right', true);
+      if(p<1){   // the patch's countdown: green, yellow, then flashing red (the same on every yard site)
+        const left=1-Math.min(1,k/0.5), col=left>0.6?'#5ac24a':left>0.35?'#e8b923':(Math.floor(t*8)%2?'#ff3a1a':'#fff3c4');
+        c.fillStyle='#0d0b08'; c.fillRect(px,py-5,32,3); c.fillStyle=col; c.fillRect(px+1,py-4,Math.max(1,Math.round(30*left)),1); }
+      if(kind==='yard') insp(18+((Math.sin(t*1.2)+1)/2)*90, 22, Math.cos(t*1.2)>0);
+      if(k<0.45 && kind==='pond'){   // around the water: along the top edge, then down to the patch
+        const q=k/0.45, hx=q<0.6?10+q/0.6*46:56+(q-0.6)/0.4*(px-60), hy=q<0.6?24:24+(q-0.6)/0.4*(py+16-24);
+        hero(hx, hy, q<0.6?'right':'down', true);
+      } else if(k<0.45) hero(14+(k/0.45)*(px-18), py+16, 'right', true);
       else if(k<0.85){ const d=HERO.lay.right; c.drawImage(d.img, px-d.w+10, py+16-d.h, d.w, d.h); }
       else hero(px-6, py+16, 'down', false);
     } else if(kind==='slope'){
