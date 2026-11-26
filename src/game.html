@@ -979,7 +979,6 @@
         {icon:TILE_SRC.slope, text:'The long slope will drag you toward the pond.'}
       ],
       duration:38, spawnInterval:3.4, maxActive:2, activeLifetime:10, inspectorSpeed:43,
-      inspector2:true,   // 2-player runs only: a second Inspector walks the loop the other way
       map:[
         "################",
         "#..............#",
@@ -1108,6 +1107,7 @@
         else if(l.type==='road'){ l.obstacleIntervalMin*=0.85; l.obstacleIntervalMax*=0.85; l.obstacleSpeedMult*=1.08; }
         else if(l.type==='curtain'){ if(l.current) l.current*=1.3; }
       }
+      l.inspector2 = l.type==='yard' && coop && d!=='easy';   // 2 players (not EASY): a second Inspector on every yard site
       if(coop){   // 2 players: same number of patches/drains to score as solo (same max points), but more danger
         if(l.type==='yard'){ l.activeLifetime*=0.7; l.inspectorSpeed*=1.2; }
         else if(l.type==='road' && l.dir==='up'){ l.carSpeed*=1.12; l.obstacleIntervalMin*=0.7; l.obstacleIntervalMax*=0.7; }
@@ -1725,7 +1725,7 @@
   let gameTime=0;
   let grid=[], erosionTiles=[], rainProgress=0, spawnTimer=0;
   let obstacles=[], basins=[], invulnTimer=0;
-  let midDrains=0, bandHist=[];   // Main Street: drains in the middle of the road late in the round; recent traffic lines
+  let midDrains=0, bandHist=[], prevGap=9, sinceSpawn=9;   // Main Street: center drains late in the round; recent traffic lines; spacing between vehicles
   let basinTimer=0, obstacleTimer=0, worldScroll=0, roadDifficulty=1, truckSchedule=[], bikeCooldown=0;
   let curtainWaypoints=[], curtainNextIdx=0, curtainDeviations=[], curtainTrail=[];
   let curtainAccs=[];           // plan match % for each curtain site finished this run
@@ -2120,7 +2120,7 @@
     particles=[]; popups=[]; banner=null;
     rainProgress=0; invulnTimer=0;
     player.layProgress=0; player.layTarget=null; player.laying=false; player.facing='down'; player.moving=false;
-    siteStats={covers:0,hits:0}; midDrains=0; bandHist=[];
+    siteStats={covers:0,hits:0}; midDrains=0; bandHist=[]; prevGap=9; sinceSpawn=9;
     if(lvl.type==='road' && lvl.dir==='up'){
       grid=[]; erosionTiles=[]; obstacles=[]; basins=[];
       basinTimer=1.2; obstacleTimer=2.2; truckSchedule=lvl.bmpTruckAt.slice();
@@ -3281,19 +3281,21 @@
               (ROAD_TOP+ROAD_BOTTOM)/2+(half-h)/2,          // bottom lane
               ROAD_BOTTOM-h][nextBand]+(nextBand===0||nextBand===4?0:j);
     };
-    obstacleTimer-=dt;
-    if(truckSchedule.length && rainProgress>=truckSchedule[0]){
+    obstacleTimer-=dt; sinceSpawn+=dt;
+    if(truckSchedule.length && rainProgress>=truckSchedule[0] && sinceSpawn>(prevGap<1.8 ? 2.4 : 1.6)){   // the truck waits for a real gap too
+      prevGap=sinceSpawn; sinceSpawn=0;
       truckSchedule.shift();
       const t=BMP_TRUCK, speed=scrollSpeed*1.25;
       const lane=pickLane();
       obstacles.push({x:VIEW_W+speed*1.1, y:laneY(lane,t.h), lane, w:t.w, h:t.h, kind:'truck', sprite:t, speed, honked:false});
-      obstacleTimer=Math.max(obstacleTimer,1.6);
+      obstacleTimer=Math.max(obstacleTimer,2);
       sfx.horn();
     }
     // the Inspector's bike is a rare cameo: only one on the road, and a long wait after he rides off
     const bikeOnRoad=obstacles.some(o=>o.kind==='bike');
     if(!bikeOnRoad) bikeCooldown-=dt;
     if(obstacleTimer<=0){
+      prevGap=sinceSpawn; sinceSpawn=0;
       const isBike=!bikeOnRoad && bikeCooldown<=0 && Math.random()<0.35;
       if(isBike) bikeCooldown=14;
       const sprite=isBike?BIKE:CARS[(Math.random()*CARS.length)|0];
@@ -3302,14 +3304,17 @@
       obstacles.push({x:VIEW_W+speed*0.75, y:laneY(lane,sprite.h), lane, w:sprite.w, h:sprite.h,
                       kind:isBike?'bike':'car', sprite, speed, honked:false});
       obstacleTimer=(lvl.obstacleIntervalMin+Math.random()*(lvl.obstacleIntervalMax-lvl.obstacleIntervalMin))/roadDifficulty;
+      // keep cars apart: never closer than 1.1 s, and never two quick gaps in a row (no back-to-back-to-back)
+      obstacleTimer=Math.max(obstacleTimer, 1.1);
+      if(prevGap<1.8) obstacleTimer=Math.max(obstacleTimer, 2.4);
       roadDifficulty=Math.min(2.2, roadDifficulty*1.06);
     }
     // move front-to-back so a faster vehicle slows down behind a slower one in its lane
     obstacles.sort((a,b)=>a.x-b.x);
     for(const o of obstacles){
       o.x-=o.speed*dt;
-      const ahead=obstacles.filter(a=>a!==o && (a.lane===o.lane || a.lane===2 || o.lane===2) && a.x<o.x).reduce((m,a)=>(!m||a.x>m.x)?a:m,null);
-      if(ahead && o.x<ahead.x+ahead.w+8) o.x=ahead.x+ahead.w+8;
+      const ahead=obstacles.filter(a=>a!==o && Math.abs((a.y+a.h)-(o.y+o.h))<12 && a.x<o.x).reduce((m,a)=>(!m||a.x>m.x)?a:m,null);
+      if(ahead && o.x<ahead.x+ahead.w+24) o.x=ahead.x+ahead.w+24;   // a real following gap, not bumper to bumper
     }
     for(let i=obstacles.length-1;i>=0;i--){
       const o=obstacles[i];
