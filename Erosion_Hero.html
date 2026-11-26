@@ -994,6 +994,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
         {icon:TILE_SRC.slope, text:'The long slope will drag you toward the pond.'}
       ],
       duration:38, spawnInterval:3.4, maxActive:2, activeLifetime:10, inspectorSpeed:43,
+      inspector2:true,   // 2-player runs only: a second Inspector walks the loop the other way
       map:[
         "################",
         "#..............#",
@@ -1126,6 +1127,11 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
         if(l.type==='yard'){ l.activeLifetime*=0.7; l.inspectorSpeed*=1.2; }
         else if(l.type==='road' && l.dir==='up'){ l.carSpeed*=1.12; l.obstacleIntervalMin*=0.7; l.obstacleIntervalMax*=0.7; }
         else if(l.type==='road'){ l.obstacleSpeedMult*=1.12; l.obstacleIntervalMin*=0.7; l.obstacleIntervalMax*=0.7; }
+        if(d==='conf'){   // booth teams were cruising: a third patch / drain at once, a little busier everywhere
+          if(l.type==='yard'){ l.maxActive+=1; l.spawnInterval*=0.9; }
+          else if(l.type==='road'){ l.basinMax+=1; l.basinSpawnInterval*=0.88; l.obstacleIntervalMin*=0.88; l.obstacleIntervalMax*=0.88; }
+          else if(l.type==='curtain'){ if(l.current) l.current*=1.2; l.planPreview=Math.max(2.5, l.planPreview-0.5); }
+        }
       }
       LEVELS.push(l);
     });
@@ -1742,7 +1748,9 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   const PLUME_SPREAD_SEC=26;
   let buildings={top:[],bottom:[]}, cones=[], skyline=[];
   let player={x:0,y:0,w:10,h:10,speed:62,layProgress:0,layTarget:null,layDir:'down',laying:false,facing:'down',moving:false,animTime:0,layTick:0};
-  let inspector={x:0,y:0,speed:40,wpIndex:0,path:[],dirx:0,diry:1,seenTimer:0,animTime:0,alerted:false};
+  let inspector={id:0,x:0,y:0,speed:40,wpIndex:0,path:[],dirx:0,diry:1,seenTimer:0,animTime:0,alerted:false};
+  let inspectors=[inspector];   // 2-player runs add a second Inspector on some sites (inspector2)
+  function eachInsp(fn){ const sv=inspector; try{ for(const ins of inspectors){ inspector=ins; fn(ins); } } finally{ inspector=sv; } }
   // ---------- 2 PLAYERS (Conference only) ----------
   // P holds both players. The game code is written for one hero (player, HERO, invulnTimer, IN), so withP()
   // swaps a player's state into those globals, runs the code, and saves it back. Solo play never uses it.
@@ -1756,15 +1764,15 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   const STAKE_PAL={t:'#d6b25e', d:'#8a6a2a', k:'#2a1d0e'};
   function setupPlayers(n){
     coop=n===2; csPhase=1;
-    P=coop?[0,1].map(i=>({i, o:i===0?player:Object.assign({},player), hero:i===0?HERO:(CREW.find(c=>c!==HERO&&!isSecret(c))||CREW[1]), inv:0, out:false, seen:0, alert:false, src:null, held:{}, raw:{}, cs:{idx:0, ready:false}})):[];
+    P=coop?[0,1].map(i=>({i, o:i===0?player:Object.assign({},player), hero:i===0?HERO:(CREW.find(c=>c!==HERO&&!isSecret(c))||CREW[1]), inv:0, out:false, seen:{}, alert:{}, src:null, held:{}, raw:{}, cs:{idx:0, ready:false}})):[];
     padSig='';
   }
   function withP(p, fn){
     const sv={player, HERO, inv:invulnTimer, IN};
-    player=p.o; HERO=p.hero; invulnTimer=p.inv; inspector.seenTimer=p.seen; inspector.alerted=p.alert; IN=p.held; curP=p;
+    player=p.o; HERO=p.hero; invulnTimer=p.inv; inspector.seenTimer=p.seen[inspector.id]||0; inspector.alerted=!!p.alert[inspector.id]; IN=p.held; curP=p;
     try{ fn(); }
     finally{
-      p.inv=invulnTimer; p.seen=inspector.seenTimer; p.alert=inspector.alerted;
+      p.inv=invulnTimer; p.seen[inspector.id]=inspector.seenTimer; p.alert[inspector.id]=inspector.alerted;
       player=sv.player; HERO=sv.HERO; invulnTimer=sv.inv; IN=sv.IN; curP=null;
     }
   }
@@ -1795,7 +1803,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
         if(x>=TILE && y>=TILE && x<=COLS*TILE-TILE-b.w && y<=ROWS*TILE-TILE-b.h && !rectSolidAt(x,y,b.w,b.h)){ b.x=x; b.y=y; break; }
       }
     }
-    for(const p of P){ p.inv=0; p.seen=0; p.alert=false; }
+    for(const p of P){ p.inv=0; p.seen={}; p.alert={}; }
   }
   function drawHeroP(p){ if(p) withP(p, drawPlayer); else drawPlayer(); }
   function drawPTag(cx, topY){
@@ -2171,11 +2179,21 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       }
       spawnTimer=lvl.spawnInterval*0.5;
       player.x=lay.start[0]*TILE+3; player.y=lay.start[1]*TILE+3;
-      inspector.path=patrolRoute(lay.patrol);
-      inspector.x=inspector.path[0].x; inspector.y=inspector.path[0].y;
-      inspector.wpIndex=1; inspector.speed=lvl.inspectorSpeed; inspector.seenTimer=0; inspector.alerted=false;
-      const t=inspector.path[1]; const d=Math.hypot(t.x-inspector.x,t.y-inspector.y)||1;
-      inspector.dirx=(t.x-inspector.x)/d; inspector.diry=(t.y-inspector.y)/d;
+      inspector=inspectors[0]; inspectors.length=1;
+      const route=patrolRoute(lay.patrol);
+      const setInsp=(ins, path)=>{
+        ins.path=path; ins.x=path[0].x; ins.y=path[0].y;
+        ins.wpIndex=1%path.length; ins.speed=lvl.inspectorSpeed; ins.seenTimer=0; ins.alerted=false; ins.animTime=0;
+        const t=path[ins.wpIndex]; const d=Math.hypot(t.x-ins.x,t.y-ins.y)||1;
+        ins.dirx=(t.x-ins.x)/d; ins.diry=(t.y-ins.y)/d;
+      };
+      setInsp(inspector, route);
+      if(coop && lvl.inspector2){   // a second Inspector walks the same loop the other way, starting across from the first
+        const rev=route.slice().reverse(), h=Math.floor(rev.length/2);
+        const ins2={id:1, animTime:0};
+        setInsp(ins2, rev.slice(h).concat(rev.slice(0,h)));
+        inspectors.push(ins2);
+      }
     }
     if(coop) placeP2(lvl);
   }
@@ -3120,9 +3138,12 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   }
 
   function updateInspector(dt){
-    inspectorMove(dt);
-    eachP(()=>inspectorSight(dt));
-    if(coop){ const live=P.filter(p=>!p.out); inspector.seenTimer=Math.max(0,...live.map(p=>p.seen)); inspector.alerted=live.some(p=>p.alert); }
+    eachInsp(ins=>{
+      inspectorMove(dt);
+      eachP(()=>inspectorSight(dt));
+      if(coop){ const live=P.filter(p=>!p.out); ins.seenTimer=Math.max(0,...live.map(p=>p.seen[ins.id]||0)); ins.alerted=live.some(p=>p.alert[ins.id]); }
+      if(state!=='PLAYING') return;
+    });
   }
   // The Inspector's loop: between each pair of patrol points he takes the shortest route over dry ground
   // (around water and walls; slopes are fine), so he never walks across the pond.
@@ -3253,7 +3274,12 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
 
     // traffic: spawns off-screen right with a warning lead-in so hits always feel fair
     // traffic drives in two lanes (top and bottom half of the road), each vehicle sized to its lane
-    const laneY=(lane,h)=>(lane===0?ROAD_TOP:(ROAD_TOP+ROAD_BOTTOM)/2)+((ROAD_BOTTOM-ROAD_TOP)/2-h)/2+(Math.random()*6-3);
+    // each vehicle picks its own line: some hug the curb and roll right over the drains (no hiding in the gutter)
+    const laneY=(lane,h)=>{
+      const mid=(lane===0?ROAD_TOP:(ROAD_TOP+ROAD_BOTTOM)/2)+((ROAD_BOTTOM-ROAD_TOP)/2-h)/2;
+      const curb=lane===0?ROAD_TOP-Math.round(h*0.2):ROAD_BOTTOM-h;
+      return Math.random()<0.4 ? curb : lerp(mid, curb, Math.random()*0.7);
+    };
     const pickLane=()=>Math.random()<0.5?0:1;
     obstacleTimer-=dt;
     if(truckSchedule.length && rainProgress>=truckSchedule[0]){
@@ -4103,12 +4129,12 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     drawTiles();
     drawErosion();
     drawSlopeHints();
-    drawSightline();
+    eachInsp(()=>drawSightline());
     // depth sort the characters
     const items=(coop?P.filter(p=>!p.out):[null]).map(p=>({b:(p?p.o:player).y+(p?p.o:player).h, p}));
-    items.push({b:inspector.y+6, insp:true});
+    for(const ins of inspectors) items.push({b:ins.y+6, insp:ins});
     items.sort((a,b)=>a.b-b.b);
-    for(const it of items){ if(it.insp) drawInspector(); else drawHeroP(it.p); }
+    for(const it of items){ if(it.insp){ const sv=inspector; inspector=it.insp; drawInspector(); inspector=sv; } else drawHeroP(it.p); }
   }
 
   function drawRoad(){
@@ -4791,7 +4817,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     get units(){ return erosionTiles.filter(t=>t.state==='active').map(t=>({col:t.col,row:t.row,w:t.w,h:t.h,timer:t.timer})); },
     get grid(){ return grid; },
     get siteHits(){ return siteStats.hits; },
-    get crew(){ return HERO.id; }, get coop(){ return coop?P.map(p=>({hero:p.hero.id, src:p.src, x:p.o.x, y:p.o.y, inv:p.inv})):null; }, get csPhase(){ return csPhase; }, get audioRunning(){ return Snd.running; }, get layout(){ return yardLayout; }, get insp(){ return {x:inspector.x,y:inspector.y,path:inspector.path.map(p=>[Math.round((p.x-8)/16),Math.round((p.y-8)/16)])}; }, tileUnder(x,y){ return tileAt(Math.floor(x/TILE),Math.floor(y/TILE)); }, get duel(){ return duel?{lives:P.map(p=>p.lives), stakes:stakes.length, stuck:stakes.filter(s=>s.car).length, cars:obstacles.length, win:duelWin&&duelWin.i, pos:P.map(p=>[Math.round(p.o.x),Math.round(p.o.y),p.o.facing])}:null; },
+    get crew(){ return HERO.id; }, get coop(){ return coop?P.map(p=>({hero:p.hero.id, src:p.src, x:p.o.x, y:p.o.y, inv:p.inv})):null; }, get csPhase(){ return csPhase; }, get audioRunning(){ return Snd.running; }, get layout(){ return yardLayout; }, get insp(){ return {x:inspector.x,y:inspector.y,path:inspector.path.map(p=>[Math.round((p.x-8)/16),Math.round((p.y-8)/16)])}; }, get insps(){ return inspectors.map(i=>({x:i.x,y:i.y})); }, tileUnder(x,y){ return tileAt(Math.floor(x/TILE),Math.floor(y/TILE)); }, get duel(){ return duel?{lives:P.map(p=>p.lives), stakes:stakes.length, stuck:stakes.filter(s=>s.car).length, cars:obstacles.length, win:duelWin&&duelWin.i, pos:P.map(p=>[Math.round(p.o.x),Math.round(p.o.y),p.o.facing])}:null; },
     duelPlace(i,x,y,f){ Object.assign(P[i].o,{x,y,facing:f}); }, get audio(){ return {gains:Snd.gains, song:Snd.current}; }, qaCoop(n){ setupPlayers(n); if(coop){ P[0].src='pad0'; P[1].src='pad1'; P[1].hero=CREW[1]; } }, get bikes(){ return obstacles.filter(o=>o.kind==="bike").map(o=>Math.round(o.x)); }, get mode(){ return settings.mode; },
     isBadName(n){ return isBadName(n); },
     get banner(){ return banner&&banner.text; }, get cars(){ return obstacles.map(o=>({x:o.x,y:o.y,w:o.w,h:o.h,dir:o.dir})); }, get basins(){ return basins.map(b=>({x:b.x,y:b.y,side:b.side,state:b.state,fill:b.fill})); }, get hero(){ return {x:player.x, y:player.y, laying:player.laying, dir:player.layDir}; }
