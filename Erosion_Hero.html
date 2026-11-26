@@ -1965,6 +1965,161 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     return arr;
   }
 
+  // Yard sites: three hand-made layouts each (same number of soil patches, slopes and water, so the
+  // difficulty is the same), one picked at random every run and mirrored left-to-right half the time.
+  const YARD_LAYOUTS={
+    'RESIDENTIAL LOT':[
+      {start:[2, 6], patrol:[[2, 2], [13, 2], [13, 11], [2, 11]], map:[
+        "################",
+        "#..............#",
+        "#..DD......DD..#",
+        "#..DD......DD..#",
+        "#..............#",
+        "#....SSSS......#",
+        "#....SSSS......#",
+        "#..............#",
+        "#..~~~~....DD..#",
+        "#..~~~~....DD..#",
+        "#..............#",
+        "#..DD......DD..#",
+        "#..............#",
+        "################"]},
+      {start:[2, 7], patrol:[[2, 1], [13, 1], [13, 12], [2, 12]], map:[
+        "################",
+        "#..............#",
+        "#..~~~~....DD..#",
+        "#..~~~~....DD..#",
+        "#..............#",
+        "#..DD......DD..#",
+        "#..DD......DD..#",
+        "#..............#",
+        "#......SSSS....#",
+        "#......SSSS....#",
+        "#..............#",
+        "#..DD.....DD...#",
+        "#..............#",
+        "################"]},
+      {start:[1, 1], patrol:[[2, 4], [13, 4], [13, 10], [2, 10]], map:[
+        "################",
+        "#..............#",
+        "#..DD....SSSS..#",
+        "#..DD....SSSS..#",
+        "#..............#",
+        "#.......DD.....#",
+        "#.......DD.....#",
+        "#..............#",
+        "#..DD.....~~~~.#",
+        "#..DD.....~~~~.#",
+        "#..............#",
+        "#..DD.....DD...#",
+        "#..............#",
+        "################"]},
+    ],
+    'HILLSIDE GRADING':[
+      {start:[2, 1], patrol:[[2, 2], [13, 2], [13, 6], [7, 6], [7, 11], [2, 11]], map:[
+        "################",
+        "#..............#",
+        "#.DD..~~..DD...#",
+        "#.DD..~~..DD...#",
+        "#..............#",
+        "#..SSSSSS......#",
+        "#..SSSSSS......#",
+        "#..............#",
+        "#..~~....SS....#",
+        "#..~~....SS....#",
+        "#..............#",
+        "#..DD....SS..DD#",
+        "#..............#",
+        "################"]},
+      {start:[1, 1], patrol:[[2,2],[13,2],[13,6],[7,6],[7,11],[2,11]], map:[
+        "################",
+        "#..............#",
+        "#...~~....DD...#",
+        "#...~~....DD...#",
+        "#..............#",
+        "#......SSSSSS..#",
+        "#......SSSSSS..#",
+        "#..............#",
+        "#..SS.DD..~~...#",
+        "#..SS.DD..~~...#",
+        "#..............#",
+        "#..DD..SS...DD.#",
+        "#..............#",
+        "################"]},
+      {start:[1, 1], patrol:[[1, 1], [14, 1], [14, 7], [6, 7], [6, 12], [1, 12]], map:[
+        "################",
+        "#..............#",
+        "#..DD..~~......#",
+        "#..DD..~~......#",
+        "#..............#",
+        "#.......SSSSSS.#",
+        "#.......SSSSSS.#",
+        "#..............#",
+        "#..SS.....DD...#",
+        "#..SS.....DD...#",
+        "#......~~......#",
+        "#..SS..~~.DD.DD#",
+        "#..............#",
+        "################"]},
+    ],
+    'DETENTION POND':[
+      {start:[2, 1], patrol:[[1, 1], [13, 1], [13, 4], [7, 4], [7, 7], [13, 7], [13, 11], [1, 11]], map:[
+        "################",
+        "#..............#",
+        "#.DD~~..~~DD...#",
+        "#.DD~~..~~DD...#",
+        "#..............#",
+        "#.SSSSSSSSSS...#",
+        "#.SSSSSSSSSS...#",
+        "#..............#",
+        "#..~~~~~~....DD#",
+        "#..~~~~~~....DD#",
+        "#..............#",
+        "#..DD..SS..DD..#",
+        "#..............#",
+        "################"]},
+      {start:[1, 1], patrol:[[1, 1], [14, 1], [14, 4], [8, 4], [8, 7], [1, 7], [1, 12], [14, 12]], map:[
+        "################",
+        "#..............#",
+        "#.DD~~..DD~~...#",
+        "#.DD~~..DD~~...#",
+        "#..............#",
+        "#...SSSSSSSSSS.#",
+        "#...SSSSSSSSSS.#",
+        "#..............#",
+        "#.DD....~~~~~~.#",
+        "#.DD....~~~~~~.#",
+        "#..............#",
+        "#..SS..DD..DD..#",
+        "#..............#",
+        "################"]},
+      {start:[1,1], patrol:[[1,1],[13,1],[13,4],[7,4],[7,7],[13,7],[13,11],[1,11]], map:[
+        "################",
+        "#..............#",
+        "#...DD~~..~~DD.#",
+        "#...DD~~..~~DD.#",
+        "#..............#",
+        "#.SSSSSSSSSS...#",
+        "#.SSSSSSSSSS...#",
+        "#..............#",
+        "#..~~~~~~....DD#",
+        "#..~~~~~~....DD#",
+        "#..............#",
+        "#.DD..SS..DD...#",
+        "#..............#",
+        "################"]},
+    ],
+  };
+  let yardLayout={i:0, mirror:false};
+  function pickYardLayout(lvl){
+    const vs=YARD_LAYOUTS[lvl.name]||[{map:lvl.map, patrol:lvl.patrol, start:lvl.start}];
+    const f=window.__forceLayout;   // QA hook: {i, mirror}
+    const i=f&&f.i!=null?f.i%vs.length:Math.floor(Math.random()*vs.length);
+    const mirror=f&&f.mirror!=null?!!f.mirror:Math.random()<0.5;
+    yardLayout={i, mirror};
+    const v=vs[i], mx=c=>COLS-1-c;
+    return mirror ? {map:v.map.map(r=>r.split('').reverse().join('')), start:[mx(v.start[0]),v.start[1]], patrol:v.patrol.map(([c,r])=>[mx(c),r])} : v;
+  }
   function loadLevel(idx){
     const lvl=LEVELS[idx];
     if(coop){ player=P[0].o; HERO=P[0].hero; IN=held; }
@@ -1999,7 +2154,8 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       const p0=cScreen(lvl, lvl.a0, curtainPathC(lvl.a0,lvl));
       player.x=p0.x-player.w/2; player.y=p0.y-player.h/2; player.facing='right';
     } else {
-      grid=lvl.map.map(r=>r.split(''));
+      const lay=pickYardLayout(lvl);
+      grid=lay.map.map(r=>r.split(''));
       // Each blanket covers two tiles: a strip running downhill (1x2) where the patch is two rows
       // tall, otherwise a 2x1 strip across a one-row patch.
       erosionTiles=[];
@@ -2014,8 +2170,8 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
         erosionTiles.push({col:c,row:r,w,h,state:'dormant',timer:0,warned:false});
       }
       spawnTimer=lvl.spawnInterval*0.5;
-      player.x=lvl.start[0]*TILE+3; player.y=lvl.start[1]*TILE+3;
-      inspector.path=patrolRoute(lvl.patrol);
+      player.x=lay.start[0]*TILE+3; player.y=lay.start[1]*TILE+3;
+      inspector.path=patrolRoute(lay.patrol);
       inspector.x=inspector.path[0].x; inspector.y=inspector.path[0].y;
       inspector.wpIndex=1; inspector.speed=lvl.inspectorSpeed; inspector.seenTimer=0; inspector.alerted=false;
       const t=inspector.path[1]; const d=Math.hypot(t.x-inspector.x,t.y-inspector.y)||1;
@@ -4635,7 +4791,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     get units(){ return erosionTiles.filter(t=>t.state==='active').map(t=>({col:t.col,row:t.row,w:t.w,h:t.h,timer:t.timer})); },
     get grid(){ return grid; },
     get siteHits(){ return siteStats.hits; },
-    get crew(){ return HERO.id; }, get coop(){ return coop?P.map(p=>({hero:p.hero.id, src:p.src, x:p.o.x, y:p.o.y, inv:p.inv})):null; }, get csPhase(){ return csPhase; }, get audioRunning(){ return Snd.running; }, get insp(){ return {x:inspector.x,y:inspector.y,path:inspector.path.map(p=>[Math.round((p.x-8)/16),Math.round((p.y-8)/16)])}; }, tileUnder(x,y){ return tileAt(Math.floor(x/TILE),Math.floor(y/TILE)); }, get duel(){ return duel?{lives:P.map(p=>p.lives), stakes:stakes.length, stuck:stakes.filter(s=>s.car).length, cars:obstacles.length, win:duelWin&&duelWin.i, pos:P.map(p=>[Math.round(p.o.x),Math.round(p.o.y),p.o.facing])}:null; },
+    get crew(){ return HERO.id; }, get coop(){ return coop?P.map(p=>({hero:p.hero.id, src:p.src, x:p.o.x, y:p.o.y, inv:p.inv})):null; }, get csPhase(){ return csPhase; }, get audioRunning(){ return Snd.running; }, get layout(){ return yardLayout; }, get insp(){ return {x:inspector.x,y:inspector.y,path:inspector.path.map(p=>[Math.round((p.x-8)/16),Math.round((p.y-8)/16)])}; }, tileUnder(x,y){ return tileAt(Math.floor(x/TILE),Math.floor(y/TILE)); }, get duel(){ return duel?{lives:P.map(p=>p.lives), stakes:stakes.length, stuck:stakes.filter(s=>s.car).length, cars:obstacles.length, win:duelWin&&duelWin.i, pos:P.map(p=>[Math.round(p.o.x),Math.round(p.o.y),p.o.facing])}:null; },
     duelPlace(i,x,y,f){ Object.assign(P[i].o,{x,y,facing:f}); }, get audio(){ return {gains:Snd.gains, song:Snd.current}; }, qaCoop(n){ setupPlayers(n); if(coop){ P[0].src='pad0'; P[1].src='pad1'; P[1].hero=CREW[1]; } }, get bikes(){ return obstacles.filter(o=>o.kind==="bike").map(o=>Math.round(o.x)); }, get mode(){ return settings.mode; },
     isBadName(n){ return isBadName(n); },
     get banner(){ return banner&&banner.text; }, get cars(){ return obstacles.map(o=>({x:o.x,y:o.y,w:o.w,h:o.h,dir:o.dir})); }, get basins(){ return basins.map(b=>({x:b.x,y:b.y,side:b.side,state:b.state,fill:b.fill})); }, get hero(){ return {x:player.x, y:player.y, laying:player.laying, dir:player.layDir}; }

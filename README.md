@@ -24,6 +24,7 @@ PRESS START plays. HOW TO PLAY and LEADERBOARD are below it (joystick down/left/
 - Open it with the small hard-hat icon (bottom right of the title) or the backtick key `` ` ``. It asks for the operator PIN: **123** by default. Enter it with UP/DOWN + A on a controller, by typing, or on the on-screen keypad. Change it in the menu under OPERATOR PIN.
 - The title screen is silent. Sound starts when a player hits PRESS START. Players can turn it off during a game from the pause menu (SOUND) or with the M key. The operator menu has separate MUSIC and SOUND FX switches.
 - Leaderboard: top 10, with a small arrow button (bottom right) that flips to ranks 11-20 and back. A new score ranked 11-20 opens on page 2.
+- Yard sites (1-3): three hand-made layouts each, same patch/slope/water counts and balance-tested with a bot; one is picked at random every run and mirrored left-to-right half the time (6 looks per site).
 - Before each site: a short title card (name, a few-word goal, a 3-second demo of what's new, two icon chips). It moves on by itself after about 4.5 s, or press A.
 - Everything works without a mouse: on the title screen, move down to LEADERBOARD / the helmet (operator menu) with the D-pad or arrows and press A. PIN digits: UP/DOWN to change, A for the next digit. B closes the operator menu.
 - Inside: jump to any site, event mode, controller setup, secret heroes, music/SFX/idle reset, fullscreen, PIN, and conference leads.
