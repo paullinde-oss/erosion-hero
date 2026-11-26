@@ -1010,7 +1010,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
         "#..............#",
         "################"
       ],
-      patrol:[[2,2],[13,2],[13,4],[7,4],[7,9],[13,9],[13,11],[2,11]],
+      patrol:[[1,1],[13,1],[13,4],[7,4],[7,7],[13,7],[13,11],[1,11]],   // down the big slope at column 7, never across the pond
       start:[2,1]
     },
     {
@@ -2015,7 +2015,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       }
       spawnTimer=lvl.spawnInterval*0.5;
       player.x=lvl.start[0]*TILE+3; player.y=lvl.start[1]*TILE+3;
-      inspector.path=lvl.patrol.map(p=>({x:p[0]*TILE+8,y:p[1]*TILE+8}));
+      inspector.path=patrolRoute(lvl.patrol);
       inspector.x=inspector.path[0].x; inspector.y=inspector.path[0].y;
       inspector.wpIndex=1; inspector.speed=lvl.inspectorSpeed; inspector.seenTimer=0; inspector.alerted=false;
       const t=inspector.path[1]; const d=Math.hypot(t.x-inspector.x,t.y-inspector.y)||1;
@@ -2895,7 +2895,8 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     if(!laying){
       let vx=v.x*player.speed, vy=v.y*player.speed;
       // slopes push you downhill (suspended while laying a blanket)
-      if(tileAt(centerCol,centerRow)==='S'){ vy+=player.speed*0.4; }
+      player.sliding=tileAt(centerCol,centerRow)==='S';
+      if(player.sliding){ vy+=player.speed*0.4; slopeDust(player, player.x+player.w/2, player.y+player.h, dt); }
       const nx=player.x+vx*dt;
       if(!rectSolidAt(nx,player.y,player.w,player.h)) player.x=nx;
       const ny=player.y+vy*dt;
@@ -2904,6 +2905,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       player.y=clamp(player.y,TILE,ROWS*TILE-TILE-player.h);
     }
 
+    if(laying) player.sliding=false;
     if(laying){
       // the hero faces the blanket, so it unrolls on the side he's facing
       if(player.layTarget!==onTile){ player.layProgress=0; player.layDir=player.facing; }
@@ -2966,6 +2968,32 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     eachP(()=>inspectorSight(dt));
     if(coop){ const live=P.filter(p=>!p.out); inspector.seenTimer=Math.max(0,...live.map(p=>p.seen)); inspector.alerted=live.some(p=>p.alert); }
   }
+  // The Inspector's loop: between each pair of patrol points he takes the shortest route over dry ground
+  // (around water and walls; slopes are fine), so he never walks across the pond.
+  function patrolRoute(points){
+    const ok=(c,r)=>!isSolid(tileAt(c,r));
+    const dryNear=([c,r])=>{ if(ok(c,r)) return [c,r];
+      for(let d=1;d<6;d++) for(let dr=-d;dr<=d;dr++) for(let dc=-d;dc<=d;dc++) if(ok(c+dc,r+dr)) return [c+dc,r+dr];
+      return [c,r]; };
+    const pts=points.map(dryNear), out=[];
+    for(let i=0;i<pts.length;i++){
+      const [sc,sr]=pts[i], [ec,er]=pts[(i+1)%pts.length];
+      const prev={}, q=[[sc,sr]]; prev[sc+','+sr]=null;
+      while(q.length){ const [c,r]=q.shift(); if(c===ec&&r===er) break;
+        for(const [dc,dr] of [[1,0],[-1,0],[0,1],[0,-1]]){ const n=(c+dc)+','+(r+dr);
+          if(!(n in prev) && ok(c+dc,r+dr)){ prev[n]=c+','+r; q.push([c+dc,r+dr]); } } }
+      const seg=[]; let k=ec+','+er; if(!(k in prev)){ seg.push([ec,er]); } else while(k){ seg.unshift(k.split(',').map(Number)); k=prev[k]; }
+      seg.shift();   // the start point is already the end of the previous leg
+      out.push(...seg);
+    }
+    // keep only the corners
+    const corners=out.filter((p,i)=>{ const a=out[(i-1+out.length)%out.length], b=out[(i+1)%out.length];
+      return (p[0]-a[0])!==(b[0]-p[0]) || (p[1]-a[1])!==(b[1]-p[1]); });
+    const route=(corners.length>=2?corners:out).map(([c,r])=>({x:c*TILE+8,y:r*TILE+8}));
+    // start the loop at the first patrol point
+    const s0=pts[0], i0=route.findIndex(p=>p.x===s0[0]*TILE+8&&p.y===s0[1]*TILE+8);
+    return i0>0 ? route.slice(i0).concat(route.slice(0,i0)) : route;
+  }
   function inspectorMove(dt){
     inspector.animTime+=dt;
     const target=inspector.path[inspector.wpIndex];
@@ -2979,9 +3007,18 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
       const k=Math.min(1,dt*10);
       let nx=lerp(inspector.dirx,tx,k), ny=lerp(inspector.diry,ty,k);
       const n=Math.hypot(nx,ny)||1; inspector.dirx=nx/n; inspector.diry=ny/n;
-      const step=Math.min(dist, inspector.speed*dt);
+      const onSlope=tileAt(Math.floor(inspector.x/TILE), Math.floor(inspector.y/TILE))==='S';
+      const slopeK=onSlope ? (ty>0.3?1.45:ty<-0.3?0.65:1) : 1;   // downhill he speeds up, uphill he slogs
+      const step=Math.min(dist, inspector.speed*slopeK*dt);
       inspector.x+=tx*step; inspector.y+=ty*step;
+      if(onSlope) slopeDust(inspector, inspector.x, inspector.y+6, dt);
     }
+  }
+  // dust kicked up on a slope (hero or Inspector), every ~0.08 s
+  function slopeDust(who, x, y, dt){
+    who.dustT=(who.dustT||0)-dt; if(who.dustT>0) return; who.dustT=0.08;
+    particles.push({x:x+(Math.random()*6-3), y, vx:(Math.random()*16-8), vy:-6-Math.random()*8, life:0.45, max:0.45,
+                    color:Math.random()<0.5?'#c8a878':'#9a7a52', size:Math.random()<0.4?2:1, grav:40});
   }
   function inspectorSight(dt){
     // sightline check against the player
@@ -3883,6 +3920,11 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
   }
   function drawPlayer(){
     if(player.laying) return; // drawn in its laying pose on the tile instead
+    if(player.sliding){   // faint downhill arrow under the hero while a slope is pushing them
+      const ax=Math.round(player.x+player.w/2), ay=Math.round(player.y+player.h+3+(Math.floor(gameTime*6)%2));
+      ctx.fillStyle='rgba(255,243,196,.45)';
+      ctx.fillRect(ax-3,ay,1,1); ctx.fillRect(ax-2,ay+1,1,1); ctx.fillRect(ax-1,ay+2,3,1); ctx.fillRect(ax+2,ay+1,1,1); ctx.fillRect(ax+3,ay,1,1);
+    }
     const blink=invulnTimer>0 && Math.floor(gameTime*12)%2===0;
     if(blink && !coop) return;
     const f=player.facing;
@@ -4593,7 +4635,7 @@ const SPRITE_SRC = {"cone": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAA
     get units(){ return erosionTiles.filter(t=>t.state==='active').map(t=>({col:t.col,row:t.row,w:t.w,h:t.h,timer:t.timer})); },
     get grid(){ return grid; },
     get siteHits(){ return siteStats.hits; },
-    get crew(){ return HERO.id; }, get coop(){ return coop?P.map(p=>({hero:p.hero.id, src:p.src, x:p.o.x, y:p.o.y, inv:p.inv})):null; }, get csPhase(){ return csPhase; }, get audioRunning(){ return Snd.running; }, get duel(){ return duel?{lives:P.map(p=>p.lives), stakes:stakes.length, stuck:stakes.filter(s=>s.car).length, cars:obstacles.length, win:duelWin&&duelWin.i, pos:P.map(p=>[Math.round(p.o.x),Math.round(p.o.y),p.o.facing])}:null; },
+    get crew(){ return HERO.id; }, get coop(){ return coop?P.map(p=>({hero:p.hero.id, src:p.src, x:p.o.x, y:p.o.y, inv:p.inv})):null; }, get csPhase(){ return csPhase; }, get audioRunning(){ return Snd.running; }, get insp(){ return {x:inspector.x,y:inspector.y,path:inspector.path.map(p=>[Math.round((p.x-8)/16),Math.round((p.y-8)/16)])}; }, tileUnder(x,y){ return tileAt(Math.floor(x/TILE),Math.floor(y/TILE)); }, get duel(){ return duel?{lives:P.map(p=>p.lives), stakes:stakes.length, stuck:stakes.filter(s=>s.car).length, cars:obstacles.length, win:duelWin&&duelWin.i, pos:P.map(p=>[Math.round(p.o.x),Math.round(p.o.y),p.o.facing])}:null; },
     duelPlace(i,x,y,f){ Object.assign(P[i].o,{x,y,facing:f}); }, get audio(){ return {gains:Snd.gains, song:Snd.current}; }, qaCoop(n){ setupPlayers(n); if(coop){ P[0].src='pad0'; P[1].src='pad1'; P[1].hero=CREW[1]; } }, get bikes(){ return obstacles.filter(o=>o.kind==="bike").map(o=>Math.round(o.x)); }, get mode(){ return settings.mode; },
     isBadName(n){ return isBadName(n); },
     get banner(){ return banner&&banner.text; }, get cars(){ return obstacles.map(o=>({x:o.x,y:o.y,w:o.w,h:o.h,dir:o.dir})); }, get basins(){ return basins.map(b=>({x:b.x,y:b.y,side:b.side,state:b.state,fill:b.fill})); }, get hero(){ return {x:player.x, y:player.y, laying:player.laying, dir:player.layDir}; }
